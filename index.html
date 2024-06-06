@@ -17,6 +17,45 @@
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .custom-div-icon {
+            position: relative;
+        }
+        .marker-pin {
+            width: 30px;
+            height: 42px;
+            background-color: red;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -15px;
+            margin-top: -21px;
+        }
+        .marker-pin::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            margin: 3px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -12px;
+            margin-top: -12px;
+        }
+        .custom-div-icon span {
+            position: absolute;
+            top: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
         }
     </style>
 </head>
