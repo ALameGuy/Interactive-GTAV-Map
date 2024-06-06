@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 100vh;
+            display: none;
+        }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        .custom-div-icon {
+            position: relative;
+        }
+        .marker-pin {
+            width: 30px;
+            height: 42px;
+            background-color: red;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -15px;
+            margin-top: -21px;
+        }
+        .marker-pin::after {
+            content: '';
+            width: 24px;
+            height: 24px;
+            margin: 3px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -12px;
+            margin-top: -12px;
+        }
+        .custom-div-icon span {
+            position: absolute;
+            top: 45px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        #login {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <div id="login">
+        <h2>Login</h2>
+        <label for="username">Username:</label>
+        <input type="text" id="username"><br><br>
+        <label for="password">Password:</label>
+        <input type="password" id="password"><br><br>
+        <button onclick="login()">Login</button>
+        <p id="error" style="color: red;"></p>
+    </div>
+    <div id="controls">
+        <label for="markerName">Marker Name:</label>
+        <input type="text" id="markerName">
+        <label for="markerColor">Marker Color:</label>
+        <select id="markerColor">
+            <option value="red">Red</option>
+            <option value="blue">Blue</option>
+            <option value="green">Green</option>
+            <option value="orange">Orange</option>
+            <option value="purple">Purple</option>
+        </select>
+        <button onclick="resetMarkers()">Reset Markers</button>
+        <ul id="markerList"></ul>
+    </div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Valid usernames and passwords
+        const validCredentials = {
+            "Lame": "Deadass",
+            "user2": "password2"
+        };
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorElement = document.getElementById('error');
+
+            if (validCredentials[username] === password) {
+                document.getElementById('login').style.display = 'none';
+                document.getElementById('map').style.display = 'block';
+                initMap();
+            } else {
+                errorElement.textContent = 'Invalid username or password.';
+            }
+        }
+
+        function initMap() {
+            var map = L.map('map', {
+                crs: L.CRS.Simple,
+                minZoom: -5
+            });
+
+            var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
+            var imageBounds = [[0, 0], [1024, 1024]];
+            L.imageOverlay(imageUrl, imageBounds).addTo(map);
+            map.fitBounds(imageBounds);
+
+            var markers = [];
+
+            map.on('click', function(e) {
+                var markerName = document.getElementById('markerName').value || 'Unnamed Marker';
+                var markerColor = document.getElementById('markerColor').value || 'red';
+
+                var marker = L.marker(e.latlng, {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:${markerColor};" class="marker-pin"></div><span>${markerName}</span>`,
+                        iconSize: [30, 42],
+                        iconAnchor: [15, 42]
+                    })
+                }).addTo(map);
+
+                markers.push(marker);
+
+                updateMarkerList();
+
+                var shareLink = generateLink(e.latlng.lat, e.latlng.lng, markerName, markerColor);
+                prompt("Copy this link to share:", shareLink);
+            });
+
+            function generateLink(lat, lng, name, color) {
+                return window.location.href.split('?')[0] + `?lat=${lat}&lng=${lng}&name=${encodeURIComponent(name)}&color=${color}`;
+            }
+
+            function updateMarkerList() {
+                var markerList = document.getElementById('markerList');
+                markerList.innerHTML = '';
+                markers.forEach(marker => {
+                    var li = document.createElement('li');
+                    li.textContent = marker.getLatLng().toString();
+                    markerList.appendChild(li);
+                });
+            }
+
+            function resetMarkers() {
+                markers.forEach(marker => map.removeLayer(marker));
+                markers = [];
+                updateMarkerList();
+            }
+
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('lat') && urlParams.has('lng')) {
+                var lat = parseFloat(urlParams.get('lat'));
+                var lng = parseFloat(urlParams.get('lng'));
+                var name = urlParams.get('name') || 'Unnamed Marker';
+                var color = urlParams.get('color') || 'red';
+
+                var marker = L.marker([lat, lng], {
+                    icon: L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:${color};" class="marker-pin"></div><span>${name}</span>`,
+                        iconSize: [30, 42],
+                        iconAnchor: [15, 42]
+                    })
+                }).addTo(map);
+
+                markers.push(marker);
+                map.setView([lat, lng], 2);
+                updateMarkerList();
+            }
+        }
+    </script>
+</body>
+</html>
