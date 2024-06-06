@@ -9,9 +9,32 @@
         #map {
             height: 100vh;
         }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body>
+    <div id="controls">
+        <label for="markerName">Marker Name:</label>
+        <input type="text" id="markerName">
+        <label for="markerColor">Marker Color:</label>
+        <select id="markerColor">
+            <option value="red">Red</option>
+            <option value="blue">Blue</option>
+            <option value="green">Green</option>
+            <option value="orange">Orange</option>
+            <option value="purple">Purple</option>
+        </select>
+        <button onclick="resetMarkers()">Reset Markers</button>
+        <ul id="markerList"></ul>
+    </div>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
@@ -20,31 +43,73 @@
             minZoom: -5
         });
 
-        // Replace this URL with the direct URL of your uploaded image
-        var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg'; 
-        var imageBounds = [[0, 0], [1024, 1024]]; // Adjust based on the image dimensions
+        var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
+        var imageBounds = [[0, 0], [1024, 1024]];
         L.imageOverlay(imageUrl, imageBounds).addTo(map);
         map.fitBounds(imageBounds);
 
-        // Add marker on click and generate sharable link
+        var markers = [];
+
         map.on('click', function(e) {
-            var marker = L.marker(e.latlng).addTo(map);
-            var shareLink = generateLink(e.latlng.lat, e.latlng.lng);
+            var markerName = document.getElementById('markerName').value || 'Unnamed Marker';
+            var markerColor = document.getElementById('markerColor').value || 'red';
+
+            var marker = L.marker(e.latlng, {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color:${markerColor};" class="marker-pin"></div><span>${markerName}</span>`,
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 42]
+                })
+            }).addTo(map);
+
+            markers.push(marker);
+
+            updateMarkerList();
+
+            var shareLink = generateLink(e.latlng.lat, e.latlng.lng, markerName, markerColor);
             prompt("Copy this link to share:", shareLink);
         });
 
-        // Function to generate shareable link
-        function generateLink(lat, lng) {
-            return window.location.href.split('?')[0] + '?lat=' + lat + '&lng=' + lng;
+        function generateLink(lat, lng, name, color) {
+            return window.location.href.split('?')[0] + `?lat=${lat}&lng=${lng}&name=${encodeURIComponent(name)}&color=${color}`;
         }
 
-        // Check if there are coordinates in the URL
+        function updateMarkerList() {
+            var markerList = document.getElementById('markerList');
+            markerList.innerHTML = '';
+            markers.forEach(marker => {
+                var li = document.createElement('li');
+                li.textContent = marker.getLatLng().toString();
+                markerList.appendChild(li);
+            });
+        }
+
+        function resetMarkers() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+            updateMarkerList();
+        }
+
         var urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('lat') && urlParams.has('lng')) {
             var lat = parseFloat(urlParams.get('lat'));
             var lng = parseFloat(urlParams.get('lng'));
-            L.marker([lat, lng]).addTo(map);
+            var name = urlParams.get('name') || 'Unnamed Marker';
+            var color = urlParams.get('color') || 'red';
+
+            var marker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color:${color};" class="marker-pin"></div><span>${name}</span>`,
+                    iconSize: [30, 42],
+                    iconAnchor: [15, 42]
+                })
+            }).addTo(map);
+
+            markers.push(marker);
             map.setView([lat, lng], 2);
+            updateMarkerList();
         }
     </script>
 </body>
