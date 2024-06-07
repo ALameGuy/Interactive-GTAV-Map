@@ -1,276 +1,223 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Map</title>
+    <title>Goat's Interactive GTAV Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-extra-markers@1.1.0/dist/css/leaflet.extra-markers.min.css" />
     <style>
-        #map {
-            height: 100vh;
-            display: none;
-        }
-        #controls {
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #map { height: calc(100vh - 20px); }
+        #branding {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background-color: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-        }
-        .custom-div-icon {
-            position: relative;
-        }
-        .marker-pin {
-            width: 30px;
-            height: 42px;
-            background-color: red;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            margin-left: -15px;
-            margin-top: -21px;
-        }
-        .marker-pin::after {
-            content: '';
-            width: 24px;
-            height: 24px;
-            margin: 3px;
-            background-color: white;
-            border-radius: 50%;
-            position: absolute;
-            left: 50%;
-            top: 50%;
-            margin-left: -12px;
-            margin-top: -12px;
-        }
-        .custom-div-icon span {
-            position: absolute;
-            top: 45px;
+            top: 5px;
             left: 50%;
             transform: translateX(-50%);
-            white-space: nowrap;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-        #login {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            z-index: 2000;
+            z-index: 1000;
+            text-align: center;
+            font-size: 12px; /* Adjust as needed */
         }
-        #dialog {
+        #tutorialSidebar {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            padding: 20px;
+            top: 10px;
+            left: 10px; /* Adjust the position */
+            width: 280px;
+            height: calc(100vh - 20px);
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
             border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            z-index: 2000;
+            z-index: 1000;
+        }
+        #tutorialSidebar h2 {
+            margin-top: 0;
+        }
+        .hidden {
             display: none;
+        }
+        .marker-options {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+        .marker-options label {
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
-    <div id="login">
+    <div id="branding" class="hidden">
+        <h1>Goat's Interactive GTAV Map</h1>
+    </div>
+    <div id="tutorialSidebar" class="hidden">
+        <h2>Tutorial</h2>
+        <p>How to use the map:</p>
+        <ul>
+            <li>Log in with your username and password.</li>
+            <li>Select a marker color and name.</li>
+            <li>Click on the map to add a marker.</li>
+            <li>Confirm the markers to generate a sharable link.</li>
+            <li>Remove individual markers by clicking on them and confirming removal.</li>
+            <li>Reset all markers using the reset button.</li>
+        </ul>
+    </div>
+    <div id="loginForm">
         <h2>Login</h2>
         <label for="username">Username:</label>
         <input type="text" id="username"><br><br>
         <label for="password">Password:</label>
         <input type="password" id="password"><br><br>
         <button onclick="login()">Login</button>
-        <p id="error" style="color: red;"></p>
     </div>
-    <div id="controls">
+    <div id="map" class="hidden"></div>
+    <div class="marker-options hidden">
         <label for="markerName">Marker Name:</label>
-        <input type="text" id="markerName">
+        <input type="text" id="markerName"><br>
         <label for="markerColor">Marker Color:</label>
         <select id="markerColor">
             <option value="red">Red</option>
             <option value="blue">Blue</option>
             <option value="green">Green</option>
             <option value="orange">Orange</option>
-            <option value="purple">Purple</option>
         </select>
-        <label for="markerType">Marker Type:</label>
-        <select id="markerType">
-            <option value="pin">Pin</option>
-            <option value="house">House</option>
-            <option value="shop">Shop</option>
-        </select>
-        <button onclick="confirmMarkers()">Confirm Markers</button>
-        <button onclick="resetMarkers()">Reset Markers</button>
-        <ul id="markerList"></ul>
+        <button onclick="prepareMarker()">Prepare Marker</button><br>
+        <button id="confirmMarkersButton" onclick="confirmMarkers()">Confirm Markers</button>
+        <button id="resetMarkersButton" onclick="resetMarkers()">Reset Markers</button>
     </div>
-    <div id="dialog">
-        <h3>Shareable Link</h3>
-        <input type="text" id="shareLink" readonly>
-        <button onclick="copyLink()">Copy Link</button>
-    </div>
-    <div id="map"></div>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-extra-markers@1.1.0/dist/js/leaflet.extra-markers.min.js"></script>
     <script>
-        const validCredentials = {
-            "user1": "password1",
-            "user2": "password2"
-        };
+        var validCredentials = [
+            {username: 'user1', password: 'pass1'},
+            {username: 'user2', password: 'pass2'}
+        ];
 
         function login() {
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorElement = document.getElementById('error');
-
-            if (validCredentials[username] === password) {
-                document.getElementById('login').style.display = 'none';
-                document.getElementById('map').style.display = 'block';
-                initMap();
-            } else {
-                errorElement.textContent = 'Invalid username or password.';
+            var username = document.getElementById('username').value;
+            var password = document.getElementById('password').value;
+            for (var i = 0; i < validCredentials.length; i++) {
+                if (validCredentials[i].username === username && validCredentials[i].password === password) {
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('map').classList.remove('hidden');
+                    document.getElementById('branding').classList.remove('hidden');
+                    document.querySelector('.marker-options').classList.remove('hidden');
+                    document.getElementById('tutorialSidebar').classList.remove('hidden'); // Show tutorial after login
+                    initializeMap();
+                    return;
+                }
             }
+            alert("Invalid username or password!");
         }
 
-        let map;
-        let markers = [];
+        var map, markers = [];
+        var markerColors = {
+            'red': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            'blue': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+            'green': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            'orange': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png'
+        };
 
-        function initMap() {
+        function initializeMap() {
             map = L.map('map', {
                 crs: L.CRS.Simple,
-                minZoom: -5,
-                zoomControl: false // Disable default zoom control
+                minZoom: -5
             });
 
-            L.control.zoom({
-                position: 'bottomleft' // Reposition zoom control to bottom left
-            }).addTo(map);
-
-            var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
+            var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg'; 
             var imageBounds = [[0, 0], [1024, 1024]];
             L.imageOverlay(imageUrl, imageBounds).addTo(map);
             map.fitBounds(imageBounds);
 
-            map.on('click', function(e) {
-                var markerName = document.getElementById('markerName').value || 'Unnamed Marker';
-                var markerColor = document.getElementById('markerColor').value || 'red';
-                var markerType = document.getElementById('markerType').value || 'pin';
+            // Removing default zoom controls
+            map.zoomControl.remove();
 
-                var markerHtml = '';
-                if (markerType === 'pin') {
-                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>${markerName}</span>`;
-                } else if (markerType === 'house') {
-                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>🏠 ${markerName}</span>`;
-                } else if (markerType === 'shop') {
-                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>🏬 ${markerName}</span>`;
-                }
-
-                var marker = L.marker(e.latlng, {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: markerHtml,
-                        iconSize: [30, 42],
-                        iconAnchor: [15, 42]
-                    })
-                }).addTo(map);
-
-                markers.push({ marker: marker, latlng: e.latlng, name: markerName, color: markerColor, type: markerType });
-
-                updateMarkerList();
-            });
-
-            function updateMarkerList() {
-                var markerList = document.getElementById('markerList');
-                markerList.innerHTML = '';
-                markers.forEach((item, index) => {
-                    var li = document.createElement('li');
-                    li.textContent = `${item.name} (${item.type}) at ${item.latlng.toString()}`;
-                    markerList.appendChild(li);
+            // Add markers from URL
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('markers')) {
+                var markerData = urlParams.get('markers').split(';');
+                markerData.forEach(function(data) {
+                    var parts = data.split(',');
+                    var latlng = [parseFloat(parts[0]), parseFloat(parts[1])];
+                    var name = parts[2];
+                    var color = parts[3];
+                    addMarker(latlng, name, color, false);
                 });
             }
         }
 
+        function prepareMarker() {
+            var markerName = document.getElementById('markerName').value;
+            var markerColor = document.getElementById('markerColor').value;
+
+            map.once('click', function(e) {
+                addMarker(e.latlng, markerName,markerColor, true);
+            });
+        }
+
+        function addMarker(latlng, name, color, isNew) {
+            var marker = L.marker(latlng, {
+                icon: L.icon({
+                    iconUrl: markerColors[color],
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34],
+                    shadowSize: [41, 41]
+                })
+            }).addTo(map).bindPopup(name);
+
+            marker.on('popupopen', function() {
+                var btn = L.DomUtil.create('button', 'removeMarker', marker._popup._contentNode);
+                btn.innerHTML = 'Remove Marker';
+                L.DomEvent.on(btn, 'click', function() {
+                    map.removeLayer(marker);
+                    markers = markers.filter(m => m !== marker);
+                });
+            });
+
+            if (isNew) {
+                markers.push(marker);
+            }
+        }
+
         function confirmMarkers() {
-            var shareLink = generateLink();
-            document.getElementById('shareLink').value = shareLink;
-            document.getElementById('dialog').style.display = 'block';
-        }
-
-        function generateLink() {
-            var baseUrl = window.location.href.split('?')[0];
-            var markerParams = markers.map(marker => {
-                return `lat=${marker.latlng.lat}&lng=${marker.latlng.lng}&name=${encodeURIComponent(marker.name)}&color=${marker.color}&type=${marker.type}`;
-            }).join('&');
-            return `${baseUrl}?${markerParams}`;
-        }
-
-        function copyLink() {
-            var shareLinkInput = document.getElementById('shareLink');
-            shareLinkInput.select();
-            document.execCommand('copy');
-            alert('Link copied to clipboard');
+            var markerStrings = markers.map(function(marker) {
+                var latlng = marker.getLatLng();
+                var name = marker.getPopup().getContent();
+                var color = Object.keys(markerColors).find(key => markerColors[key] === marker.options.icon.options.iconUrl);
+                return latlng.lat + ',' + latlng.lng + ',' + name + ',' + color;
+            });
+            var urlParams = new URLSearchParams();
+            urlParams.append('markers', markerStrings.join(';'));
+            var urlString = window.location.href.split('?')[0] + '?' + urlParams.toString();
+            copyToClipboard(urlString);
+            alert("Sharable link copied to clipboard!");
         }
 
         function resetMarkers() {
-            markers.forEach(item => map.removeLayer(item.marker));
+            markers.forEach(function(marker) {
+                map.removeLayer(marker);
+            });
             markers = [];
-            updateMarkerList();
         }
 
-        function placeInitialMarkersFromUrl() {
-            var urlParams = new URLSearchParams(window.location.search);
-            var latlngs = [];
-            var markerIndex = 0;
-
-            while (urlParams.has(`lat`) && urlParams.has(`lng`)) {
-                var lat = parseFloat(urlParams.get(`lat`));
-                var lng = parseFloat(urlParams.get(`lng`));
-                var name = urlParams.get(`name`) || 'Unnamed Marker';
-                var color = urlParams.get(`color`) || 'red';
-                var type = urlParams.get(`type`) || 'pin';
-
-                var markerHtml = '';
-                if (type === 'pin') {
-                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>${name}</span>`;
-                } else if (type === 'house') {
-                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>🏠 ${name}</span>`;
-                } else if (type === 'shop') {
-                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>🏬 ${name}</span>`;
-                }
-
-                var marker = L.marker([lat, lng], {
-                    icon: L.divIcon({
-                        className: 'custom-div-icon',
-                        html: markerHtml,
-                        iconSize: [30, 42],
-                        iconAnchor: [15, 42]
-                    })
-                }).addTo(map);
-
-                markers.push({ marker: marker, latlng: { lat, lng }, name: name, color: color, type: type });
-                latlngs.push([lat, lng]);
-
-                markerIndex++;
-            }
-
-            if (latlngs.length > 0) {
-                var bounds = L.latLngBounds(latlngs);
-                map.fitBounds(bounds);
-            }
+        function copyToClipboard(text) {
+            var tempInput = document.createElement('input');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
         }
-
-        // Initialize the map and place markers from URL parameters
-        placeInitialMarkersFromUrl();
-
     </script>
 </body>
 </html>
+
