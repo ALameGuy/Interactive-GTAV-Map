@@ -69,6 +69,18 @@
             box-shadow: 0 0 10px rgba(0,0,0,0.2);
             z-index: 2000;
         }
+        #dialog {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 2000;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -92,15 +104,26 @@
             <option value="orange">Orange</option>
             <option value="purple">Purple</option>
         </select>
+        <label for="markerType">Marker Type:</label>
+        <select id="markerType">
+            <option value="pin">Pin</option>
+            <option value="house">House</option>
+            <option value="shop">Shop</option>
+        </select>
+        <button onclick="confirmMarkers()">Confirm Markers</button>
         <button onclick="resetMarkers()">Reset Markers</button>
         <ul id="markerList"></ul>
+    </div>
+    <div id="dialog">
+        <h3>Shareable Link</h3>
+        <input type="text" id="shareLink" readonly>
+        <button onclick="copyLink()">Copy Link</button>
     </div>
     <div id="map"></div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
-        // Valid usernames and passwords
         const validCredentials = {
-            "Lame": "Deadass?",
+            "user1": "password1",
             "user2": "password2"
         };
 
@@ -118,81 +141,136 @@
             }
         }
 
+        let map;
+        let markers = [];
+
         function initMap() {
-            var map = L.map('map', {
+            map = L.map('map', {
                 crs: L.CRS.Simple,
-                minZoom: -5
+                minZoom: -5,
+                zoomControl: false // Disable default zoom control
             });
+
+            L.control.zoom({
+                position: 'bottomleft' // Reposition zoom control to bottom left
+            }).addTo(map);
 
             var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
             var imageBounds = [[0, 0], [1024, 1024]];
             L.imageOverlay(imageUrl, imageBounds).addTo(map);
             map.fitBounds(imageBounds);
 
-            var markers = [];
-
             map.on('click', function(e) {
                 var markerName = document.getElementById('markerName').value || 'Unnamed Marker';
                 var markerColor = document.getElementById('markerColor').value || 'red';
+                var markerType = document.getElementById('markerType').value || 'pin';
+
+                var markerHtml = '';
+                if (markerType === 'pin') {
+                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>${markerName}</span>`;
+                } else if (markerType === 'house') {
+                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>🏠 ${markerName}</span>`;
+                } else if (markerType === 'shop') {
+                    markerHtml = `<div style="background-color:${markerColor};" class="marker-pin"></div><span>🏬 ${markerName}</span>`;
+                }
 
                 var marker = L.marker(e.latlng, {
                     icon: L.divIcon({
                         className: 'custom-div-icon',
-                        html: `<div style="background-color:${markerColor};" class="marker-pin"></div><span>${markerName}</span>`,
+                        html: markerHtml,
                         iconSize: [30, 42],
                         iconAnchor: [15, 42]
                     })
                 }).addTo(map);
 
-                markers.push(marker);
+                markers.push({ marker: marker, latlng: e.latlng, name: markerName, color: markerColor, type: markerType });
 
                 updateMarkerList();
-
-                var shareLink = generateLink(e.latlng.lat, e.latlng.lng, markerName, markerColor);
-                prompt("Copy this link to share:", shareLink);
             });
-
-            function generateLink(lat, lng, name, color) {
-                return window.location.href.split('?')[0] + `?lat=${lat}&lng=${lng}&name=${encodeURIComponent(name)}&color=${color}`;
-            }
 
             function updateMarkerList() {
                 var markerList = document.getElementById('markerList');
                 markerList.innerHTML = '';
-                markers.forEach(marker => {
+                markers.forEach((item, index) => {
                     var li = document.createElement('li');
-                    li.textContent = marker.getLatLng().toString();
+                    li.textContent = `${item.name} (${item.type}) at ${item.latlng.toString()}`;
                     markerList.appendChild(li);
                 });
             }
+        }
 
-            function resetMarkers() {
-                markers.forEach(marker => map.removeLayer(marker));
-                markers = [];
-                updateMarkerList();
-            }
+        function confirmMarkers() {
+            var shareLink = generateLink();
+            document.getElementById('shareLink').value = shareLink;
+            document.getElementById('dialog').style.display = 'block';
+        }
 
+        function generateLink() {
+            var baseUrl = window.location.href.split('?')[0];
+            var markerParams = markers.map(marker => {
+                return `lat=${marker.latlng.lat}&lng=${marker.latlng.lng}&name=${encodeURIComponent(marker.name)}&color=${marker.color}&type=${marker.type}`;
+            }).join('&');
+            return `${baseUrl}?${markerParams}`;
+        }
+
+        function copyLink() {
+            var shareLinkInput = document.getElementById('shareLink');
+            shareLinkInput.select();
+            document.execCommand('copy');
+            alert('Link copied to clipboard');
+        }
+
+        function resetMarkers() {
+            markers.forEach(item => map.removeLayer(item.marker));
+            markers = [];
+            updateMarkerList();
+        }
+
+        function placeInitialMarkersFromUrl() {
             var urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('lat') && urlParams.has('lng')) {
-                var lat = parseFloat(urlParams.get('lat'));
-                var lng = parseFloat(urlParams.get('lng'));
-                var name = urlParams.get('name') || 'Unnamed Marker';
-                var color = urlParams.get('color') || 'red';
+            var latlngs = [];
+            var markerIndex = 0;
+
+            while (urlParams.has(`lat`) && urlParams.has(`lng`)) {
+                var lat = parseFloat(urlParams.get(`lat`));
+                var lng = parseFloat(urlParams.get(`lng`));
+                var name = urlParams.get(`name`) || 'Unnamed Marker';
+                var color = urlParams.get(`color`) || 'red';
+                var type = urlParams.get(`type`) || 'pin';
+
+                var markerHtml = '';
+                if (type === 'pin') {
+                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>${name}</span>`;
+                } else if (type === 'house') {
+                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>🏠 ${name}</span>`;
+                } else if (type === 'shop') {
+                    markerHtml = `<div style="background-color:${color};" class="marker-pin"></div><span>🏬 ${name}</span>`;
+                }
 
                 var marker = L.marker([lat, lng], {
                     icon: L.divIcon({
                         className: 'custom-div-icon',
-                        html: `<div style="background-color:${color};" class="marker-pin"></div><span>${name}</span>`,
+                        html: markerHtml,
                         iconSize: [30, 42],
                         iconAnchor: [15, 42]
                     })
                 }).addTo(map);
 
-                markers.push(marker);
-                map.setView([lat, lng], 2);
-                updateMarkerList();
+                markers.push({ marker: marker, latlng: { lat, lng }, name: name, color: color, type: type });
+                latlngs.push([lat, lng]);
+
+                markerIndex++;
+            }
+
+            if (latlngs.length > 0) {
+                var bounds = L.latLngBounds(latlngs);
+                map.fitBounds(bounds);
             }
         }
+
+        // Initialize the map and place markers from URL parameters
+        placeInitialMarkersFromUrl();
+
     </script>
 </body>
 </html>
