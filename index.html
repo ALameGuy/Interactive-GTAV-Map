@@ -63,6 +63,27 @@
             margin-right: 5px;
         }
     </style>
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database.js"></script>
+    <script>
+        // Your Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuhZMigxzNPy6WXbJTnKIWI_f_YBa4e-M",
+            authDomain: "interactive-gtav-map.firebaseapp.com",
+            projectId: "interactive-gtav-map",
+            storageBucket: "interactive-gtav-map.appspot.com",
+            messagingSenderId: "770348099607",
+            appId: "1:770348099607:web:89744989f7cdc224d39452",
+            databaseURL: "https://interactive-gtav-map-default-rtdb.firebaseio.com/"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+    </script>
 </head>
 <body>
     <div id="branding">
@@ -70,7 +91,7 @@
     </div>
     <div id="loginForm">
         <h2>Login</h2>
-        <label for="username">Username:</label>
+        <label for="username">Email:</label>
         <input type="text" id="username"><br><br>
         <label for="password">Password:</label>
         <input type="password" id="password"><br><br>
@@ -91,6 +112,7 @@
         <button id="confirmMarkersButton" onclick="confirmMarkers()">Confirm Markers</button>
         <button id="resetMarkersButton" onclick="resetMarkers()">Reset Markers</button>
         <button onclick="toggleTutorial()">Show Tutorial</button>
+        <button onclick="refreshMarkers()">Refresh Markers</button>
     </div>
 
     <div id="tutorialSidebar" class="hidden">
@@ -108,35 +130,33 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/leaflet-extra-markers@1.1.0/dist/js/leaflet.extra-markers.min.js"></script>
     <script>
-        var validCredentials = [
-            {username: 'user1', password: 'pass1'},
-            {username: 'user2', password: 'pass2'}
-        ];
+        let currentUser = null;
+        let map, markers = [];
+        const markerColors = {
+            'red': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+            'blue': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
+            'green': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            'orange': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png'
+        };
 
         function login() {
-            var username = document.getElementById('username').value;
-            var password = document.getElementById('password').value;
-            for (var i = 0; i < validCredentials.length; i++) {
-                if (validCredentials[i].username === username && validCredentials[i].password === password) {
+            const email = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            auth.signInWithEmailAndPassword(email, password)
+                .then(userCredential => {
+                    currentUser = userCredential.user;
                     document.getElementById('loginForm').classList.add('hidden');
                     document.getElementById('map').classList.remove('hidden');
                     document.getElementById('branding').classList.remove('hidden');
                     document.querySelector('.marker-options').classList.remove('hidden');
                     document.getElementById('tutorialSidebar').classList.remove('hidden');
                     initializeMap();
-                    return;
-                }
-            }
-            alert("Invalid username or password!");
+                })
+                .catch(error => {
+                    alert("Invalid username or password!");
+                    console.error(error);
+                });
         }
-
-        var map, markers = [];
-        var markerColors = {
-            'red': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-            'blue': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-            'green': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-            'orange': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png'
-        };
 
         function initializeMap() {
             map = L.map('map', {
@@ -149,28 +169,35 @@
                 position: 'bottomleft'
             }).addTo(map);
 
-            var imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg'; 
-            var imageBounds = [[0, 0], [1024, 1024]];
+            const imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg'; 
+            const imageBounds = [[0, 0], [1024, 1024]];
             L.imageOverlay(imageUrl, imageBounds).addTo(map);
             map.fitBounds(imageBounds);
 
-            // Add markers from URL
-            var urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('markers')) {
-                var markerData = urlParams.get('markers').split(';');
-                markerData.forEach(function(data) {
-                    var parts = data.split(',');
-                    var latlng = [parseFloat(parts[0]), parseFloat(parts[1])];
-                    var name = parts[2];
-                                        var color = parts[3];
-                    addMarker(latlng, name, color, false);
-                });
-            }
+            loadMarkers();
+        }
+
+        function loadMarkers() {
+            if (!currentUser) return;
+
+            const markersRef = database.ref('markers/' + currentUser.uid);
+            markersRef.once('value').then(snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        const markerData = data[key];
+                        const latlng = [markerData.lat, markerData.lng];
+                        const name = markerData.name;
+                        const color = markerData.color;
+                        addMarker(latlng, name, color, false);
+                    });
+                }
+            });
         }
 
         function prepareMarker() {
-            var markerName = document.getElementById('markerName').value;
-            var markerColor = document.getElementById('markerColor').value;
+            const markerName = document.getElementById('markerName').value;
+            const markerColor = document.getElementById('markerColor').value;
 
             map.once('click', function(e) {
                 addMarker(e.latlng, markerName, markerColor, true);
@@ -178,7 +205,7 @@
         }
 
         function addMarker(latlng, name, color, isNew) {
-            var marker = L.marker(latlng, {
+            const marker = L.marker(latlng, {
                 icon: L.icon({
                     iconUrl: markerColors[color],
                     shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -190,42 +217,72 @@
             }).addTo(map).bindPopup(name);
 
             marker.on('popupopen', function() {
-                var btn = L.DomUtil.create('button', 'removeMarker', marker._popup._contentNode);
+                const btn = L.DomUtil.create('button', 'removeMarker', marker._popup._contentNode);
                 btn.innerHTML = 'Remove Marker';
                 L.DomEvent.on(btn, 'click', function() {
                     map.removeLayer(marker);
                     markers = markers.filter(m => m !== marker);
+                    if (isNew) removeMarkerFromDatabase(marker);
                 });
             });
 
             if (isNew) {
                 markers.push(marker);
+                saveMarkerToDatabase(latlng, name, color);
             }
         }
 
+        function saveMarkerToDatabase(latlng, name, color) {
+            if (!currentUser) return;
+            const markersRef = database.ref('markers/' + currentUser.uid);
+            const newMarkerRef = markersRef.push();
+            newMarkerRef.set({
+                lat: latlng.lat,
+                lng: latlng.lng,
+                name: name,
+                color: color
+            });
+        }
+
+        function removeMarkerFromDatabase(marker) {
+            if (!currentUser) return;
+            const markersRef = database.ref('markers/' + currentUser.uid);
+            markersRef.once('value').then(snapshot => {
+                const data = snapshot.val();
+                for (let key in data) {
+                    const markerData = data[key];
+                    if (markerData.lat === marker.getLatLng().lat && markerData.lng === marker.getLatLng().lng && markerData.name === marker.getPopup().getContent()) {
+                        markersRef.child(key).remove();
+                        break;
+                    }
+                }
+            });
+        }
+
         function confirmMarkers() {
-            var markerStrings = markers.map(function(marker) {
-                var latlng = marker.getLatLng();
-                var name = marker.getPopup().getContent();
-                var color = Object.keys(markerColors).find(key => markerColors[key] === marker.options.icon.options.iconUrl);
+            const markerStrings = markers.map(marker => {
+                const latlng = marker.getLatLng();
+                const name = marker.getPopup().getContent();
+                const color = Object.keys(markerColors).find(key => markerColors[key] === marker.options.icon.options.iconUrl);
                 return latlng.lat + ',' + latlng.lng + ',' + name + ',' + color;
             });
-            var urlParams = new URLSearchParams();
+            const urlParams = new URLSearchParams();
             urlParams.append('markers', markerStrings.join(';'));
-            var urlString = window.location.href.split('?')[0] + '?' + urlParams.toString();
+            const urlString = window.location.href.split('?')[0] + '?' + urlParams.toString();
             copyToClipboard(urlString);
             alert("Sharable link copied to clipboard!");
         }
 
         function resetMarkers() {
-            markers.forEach(function(marker) {
+            markers.forEach(marker => {
                 map.removeLayer(marker);
+                removeMarkerFromDatabase(marker);
             });
             markers = [];
         }
 
         function copyToClipboard(text) {
-            var tempInput = document.createElement('input');
+            const tempInput = document.createElement('input');
             tempInput.value = text;
             document.body.appendChild(tempInput);
             tempInput.select();
@@ -234,14 +291,19 @@
         }
 
         function toggleTutorial() {
-            var tutorialSidebar = document.getElementById('tutorialSidebar');
+            const tutorialSidebar = document.getElementById('tutorialSidebar');
             if (tutorialSidebar.classList.contains('hidden')) {
                 tutorialSidebar.classList.remove('hidden');
             } else {
                 tutorialSidebar.classList.add('hidden');
             }
         }
+
+        function refreshMarkers() {
+            if (!currentUser) return;
+            resetMarkers();
+            loadMarkers();
+        }
     </script>
 </body>
 </html>
-
