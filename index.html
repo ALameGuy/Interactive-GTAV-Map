@@ -33,6 +33,10 @@
             justify-content: center;
             align-items: center;
             height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
         #loginForm {
             background-color: #fff;
@@ -40,14 +44,22 @@
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             text-align: center;
+            width: 90%;
+            max-width: 400px;
         }
         #map {
-            height: 80%;
-            width: 80%;
+            height: 100%;
+            width: 100%;
             display: none; /* Initially hidden */
         }
         .hidden {
             display: none !important;
+        }
+        @media (min-width: 768px) {
+            #map {
+                height: 80%;
+                width: 80%;
+            }
         }
     </style>
 </head>
@@ -141,19 +153,14 @@
             L.imageOverlay(imageUrl, imageBounds).addTo(map);
             map.fitBounds(imageBounds);
 
-            loadMarkers();
+            setupMarkersListener();
 
             map.on('click', function(e) {
-                console.log("Clicked position:", e.latlng);
                 if (currentUser) {
                     const name = prompt("Enter marker name:");
                     const color = prompt("Enter marker color (red, blue, green, orange):");
-                    console.log("Entered name:", name);
-                    console.log("Selected color:", color);
                     if (name && color && markerColors[color]) {
                         addMarker(e.latlng, name, color, true);
-                    } else {
-                        console.log("Invalid name or color:", name, color);
                     }
                 } else {
                     alert("You must be logged in to add markers.");
@@ -220,13 +227,18 @@
             }
         }
 
-        function loadMarkers() {
+        function setupMarkersListener() {
             if (!currentUser) return;
 
             const markersRef = ref(database, 'markers/' + currentUser.uid);
             onValue(markersRef, snapshot => {
                 const data = snapshot.val();
                 if (data) {
+                    // Clear existing markers
+                    markers.forEach(marker => map.removeLayer(marker));
+                    markers = [];
+
+                    // Add new markers
                     Object.keys(data).forEach(key => {
                         const markerData = data[key];
                         const latlng = { lat: markerData.lat, lng: markerData.lng };
