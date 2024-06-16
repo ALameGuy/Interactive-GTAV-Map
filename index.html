@@ -4,132 +4,99 @@
     <title>Goat's Interactive GTAV Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <!-- Leaflet Extra Markers CSS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-extra-markers@1.1.0/dist/css/leaflet.extra-markers.min.css" />
+    <!-- Custom CSS -->
     <style>
-        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        #map { height: calc(100vh - 20px); }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
         #branding {
-            position: absolute;
-            top: 5px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(255, 255, 255, 0.8);
-            padding: 5px;
-            border-radius: 5px;
-            z-index: 1000;
+            background-color: #333;
+            color: #fff;
+            padding: 10px;
             text-align: center;
-            font-size: 12px; /* Adjust as needed */
+            width: 100%;
+        }
+        #loginContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
         }
         #loginForm {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            background-color: #fff;
             padding: 20px;
-            background: rgba(255, 255, 255, 0.8);
             border-radius: 5px;
-            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
-        #tutorialSidebar {
-            position: absolute;
-            top: 50px;
-            left: 10px;
-            width: 280px;
-            height: calc(100vh - 60px);
-            background: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000;
-            overflow-y: auto;
-        }
-        #tutorialSidebar h2 {
-            margin-top: 0;
+        #map {
+            height: 80%;
+            width: 80%;
+            display: none; /* Initially hidden */
         }
         .hidden {
-            display: none;
-        }
-        .marker-options {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000;
-        }
-        .marker-options label {
-            margin-right: 5px;
+            display: none !important;
         }
     </style>
-    <!-- Firebase -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-database.js"></script>
-    <script>
-        // Your Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCuhZMigxzNPy6WXbJTnKIWI_f_YBa4e-M",
-            authDomain: "interactive-gtav-map.firebaseapp.com",
-            projectId: "interactive-gtav-map",
-            storageBucket: "interactive-gtav-map.appspot.com",
-            messagingSenderId: "770348099607",
-            appId: "1:770348099607:web:89744989f7cdc224d39452",
-            databaseURL: "https://interactive-gtav-map-default-rtdb.firebaseio.com/"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
-    </script>
 </head>
 <body>
     <div id="branding">
         <h1>Goat's Interactive GTAV Map</h1>
     </div>
-    <div id="loginForm">
-        <h2>Login</h2>
-        <label for="username">Email:</label>
-        <input type="text" id="username"><br><br>
-        <label for="password">Password:</label>
-        <input type="password" id="password"><br><br>
-        <button onclick="login()">Login</button>
+    <div id="loginContainer">
+        <div id="loginForm">
+            <h2>Login</h2>
+            <input type="email" id="username" placeholder="Email" required><br><br>
+            <input type="password" id="password" placeholder="Password" required><br><br>
+            <button onclick="login()">Login</button>
+        </div>
     </div>
-    <div id="map" class="hidden"></div>
+    <div id="map"></div>
     <div class="marker-options hidden">
-        <label for="markerName">Marker Name:</label>
-        <input type="text" id="markerName"><br>
-        <label for="markerColor">Marker Color:</label>
-        <select id="markerColor">
-            <option value="red">Red</option>
-            <option value="blue">Blue</option>
-            <option value="green">Green</option>
-            <option value="orange">Orange</option>
-        </select>
-        <button onclick="prepareMarker()">Prepare Marker</button><br>
-        <button id="confirmMarkersButton" onclick="confirmMarkers()">Confirm Markers</button>
-        <button id="resetMarkersButton" onclick="resetMarkers()">Reset Markers</button>
-        <button onclick="toggleTutorial()">Show Tutorial</button>
-        <button onclick="refreshMarkers()">Refresh Markers</button>
+        <!-- Marker options UI here -->
     </div>
-
     <div id="tutorialSidebar" class="hidden">
-        <h2>Tutorial</h2>
-        <ul>
-            <li>Choose marker name and color.</li>
-            <li>Click "Prepare Marker" to place a marker on the map.</li>
-            <li>Click on the map to place the marker.</li>
-            <li>Repeat steps 1-3 to add more markers.</li>
-            <li>Click "Confirm Markers" to generate a sharable link to your clipboard.</li>
-            <li>Share the link with your friends.</li>
-        </ul>
+        <!-- Tutorial sidebar content here -->
     </div>
-
+    <!-- Leaflet JavaScript -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <!-- Leaflet Extra Markers JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet-extra-markers@1.1.0/dist/js/leaflet.extra-markers.min.js"></script>
-    <script>
+
+    <!-- Firebase scripts -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getDatabase, ref, push, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4",
+            authDomain: "map-v2-6b2e4.firebaseapp.com",
+            projectId: "map-v2-6b2e4",
+            storageBucket: "map-v2-6b2e4.appspot.com",
+            messagingSenderId: "216550808002",
+            appId: "1:216550808002:web:3443680b0ebfebbae09e5b"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth();
+        const database = getDatabase();
+
         let currentUser = null;
         let map, markers = [];
         const markerColors = {
@@ -139,15 +106,15 @@
             'orange': 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png'
         };
 
-        function login() {
+        window.login = function login() {
             const email = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            auth.signInWithEmailAndPassword(email, password)
+            signInWithEmailAndPassword(auth, email, password)
                 .then(userCredential => {
                     currentUser = userCredential.user;
-                    document.getElementById('loginForm').classList.add('hidden');
-                    document.getElementById('map').classList.remove('hidden');
-                    document.getElementById('branding').classList.remove('hidden');
+                    document.getElementById('loginContainer').classList.add('hidden');
+                    document.getElementById('map').style.display = 'block';
+                    document.getElementById('branding').style.display = 'block';
                     document.querySelector('.marker-options').classList.remove('hidden');
                     document.getElementById('tutorialSidebar').classList.remove('hidden');
                     initializeMap();
@@ -169,140 +136,106 @@
                 position: 'bottomleft'
             }).addTo(map);
 
-            const imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg'; 
+            const imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
             const imageBounds = [[0, 0], [1024, 1024]];
             L.imageOverlay(imageUrl, imageBounds).addTo(map);
             map.fitBounds(imageBounds);
 
             loadMarkers();
+
+            map.on('click', function(e) {
+                console.log("Clicked position:", e.latlng);
+                if (currentUser) {
+                    const name = prompt("Enter marker name:");
+                    const color = prompt("Enter marker color (red, blue, green, orange):");
+                    console.log("Entered name:", name);
+                    console.log("Selected color:", color);
+                    if (name && color && markerColors[color]) {
+                        addMarker(e.latlng, name, color, true);
+                    } else {
+                        console.log("Invalid name or color:", name, color);
+                    }
+                } else {
+                    alert("You must be logged in to add markers.");
+                }
+            });
+        }
+
+        window.removeMarker = function removeMarker(lat, lng, name) {
+            markers = markers.filter(marker => {
+                const isTargetMarker = marker.getLatLng().lat === parseFloat(lat) && marker.getLatLng().lng === parseFloat(lng) && marker.options.title === name;
+                if (isTargetMarker) {
+                    map.removeLayer(marker);
+                }
+                return !isTargetMarker;
+            });
+
+            const markerRef = ref(database, 'markers/' + currentUser.uid);
+            onValue(markerRef, snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    Object.keys(data).forEach(key => {
+                        const markerData = data[key];
+                        if (markerData.lat === parseFloat(lat) && markerData.lng === parseFloat(lng) && markerData.name === name) {
+                            remove(ref(database, 'markers/' + currentUser.uid + '/' + key));
+                        }
+                    });
+                }
+            }, { onlyOnce: true });
+        }
+
+        function addMarker(latlng, name, color, saveToDatabase) {
+            const markerId = saveToDatabase ? push(ref(database, 'markers/' + currentUser.uid)).key : null;
+            const marker = L.marker(latlng, {
+                icon: L.icon({
+                    iconUrl: markerColors[color],
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34]
+                }),
+                title: name  // Store the marker's name as a title property
+            }).addTo(map).on('click', function() {
+                const userResponse = prompt(`Marker Details:\nName: ${name}\nColor: ${color}\nLatitude: ${latlng.lat}\nLongitude: ${latlng.lng}\n\nDo you want to remove this marker? Type "yes" to confirm.`);
+                if (userResponse && userResponse.toLowerCase() === 'yes') {
+                    removeMarker(latlng.lat, latlng.lng, name);
+                    alert('Marker removed successfully.');
+                } else {
+                    alert('Marker not removed.');
+                }
+            });
+
+            // Store marker data
+            marker.markerData = { lat: latlng.lat, lng: latlng.lng, name, color };
+
+            markers.push(marker);
+
+            if (saveToDatabase) {
+                const markerRef = ref(database, 'markers/' + currentUser.uid + '/' + markerId);
+                set(markerRef, {
+                    lat: latlng.lat,
+                    lng: latlng.lng,
+                    name: name,
+                    color: color
+                });
+            }
         }
 
         function loadMarkers() {
             if (!currentUser) return;
 
-            const markersRef = database.ref('markers/' + currentUser.uid);
-            markersRef.once('value').then(snapshot => {
+            const markersRef = ref(database, 'markers/' + currentUser.uid);
+            onValue(markersRef, snapshot => {
                 const data = snapshot.val();
                 if (data) {
                     Object.keys(data).forEach(key => {
                         const markerData = data[key];
-                        const latlng = [markerData.lat, markerData.lng];
+                        const latlng = { lat: markerData.lat, lng: markerData.lng };
                         const name = markerData.name;
                         const color = markerData.color;
                         addMarker(latlng, name, color, false);
                     });
                 }
             });
-        }
-
-        function prepareMarker() {
-            const markerName = document.getElementById('markerName').value;
-            const markerColor = document.getElementById('markerColor').value;
-
-            map.once('click', function(e) {
-                addMarker(e.latlng, markerName, markerColor, true);
-            });
-        }
-
-        function addMarker(latlng, name, color, isNew) {
-            const marker = L.marker(latlng, {
-                icon: L.icon({
-                    iconUrl: markerColors[color],
-                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41],
-                    popupAnchor: [1, -34],
-                    shadowSize: [41, 41]
-                })
-            }).addTo(map).bindPopup(name);
-
-            marker.on('popupopen', function() {
-                const btn = L.DomUtil.create('button', 'removeMarker', marker._popup._contentNode);
-                btn.innerHTML = 'Remove Marker';
-                L.DomEvent.on(btn, 'click', function() {
-                    map.removeLayer(marker);
-                    markers = markers.filter(m => m !== marker);
-                    if (isNew) removeMarkerFromDatabase(marker);
-                });
-            });
-
-            if (isNew) {
-                markers.push(marker);
-                saveMarkerToDatabase(latlng, name, color);
-            }
-        }
-
-        function saveMarkerToDatabase(latlng, name, color) {
-            if (!currentUser) return;
-            const markersRef = database.ref('markers/' + currentUser.uid);
-            const newMarkerRef = markersRef.push();
-            newMarkerRef.set({
-                lat: latlng.lat,
-                lng: latlng.lng,
-                name: name,
-                color: color
-            });
-        }
-
-        function removeMarkerFromDatabase(marker) {
-            if (!currentUser) return;
-            const markersRef = database.ref('markers/' + currentUser.uid);
-            markersRef.once('value').then(snapshot => {
-                const data = snapshot.val();
-                for (let key in data) {
-                    const markerData = data[key];
-                    if (markerData.lat === marker.getLatLng().lat && markerData.lng === marker.getLatLng().lng && markerData.name === marker.getPopup().getContent()) {
-                        markersRef.child(key).remove();
-                        break;
-                    }
-                }
-            });
-        }
-
-        function confirmMarkers() {
-            const markerStrings = markers.map(marker => {
-                const latlng = marker.getLatLng();
-                const name = marker.getPopup().getContent();
-                const color = Object.keys(markerColors).find(key => markerColors[key] === marker.options.icon.options.iconUrl);
-                return latlng.lat + ',' + latlng.lng + ',' + name + ',' + color;
-            });
-            const urlParams = new URLSearchParams();
-            urlParams.append('markers', markerStrings.join(';'));
-            const urlString = window.location.href.split('?')[0] + '?' + urlParams.toString();
-            copyToClipboard(urlString);
-            alert("Sharable link copied to clipboard!");
-        }
-
-        function resetMarkers() {
-            markers.forEach(marker => {
-                map.removeLayer(marker);
-                removeMarkerFromDatabase(marker);
-            });
-            markers = [];
-        }
-
-        function copyToClipboard(text) {
-            const tempInput = document.createElement('input');
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
-        }
-
-        function toggleTutorial() {
-            const tutorialSidebar = document.getElementById('tutorialSidebar');
-            if (tutorialSidebar.classList.contains('hidden')) {
-                tutorialSidebar.classList.remove('hidden');
-            } else {
-                tutorialSidebar.classList.add('hidden');
-            }
-        }
-
-        function refreshMarkers() {
-            if (!currentUser) return;
-            resetMarkers();
-            loadMarkers();
         }
     </script>
 </body>
