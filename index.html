@@ -1180,7 +1180,7 @@ function listenToBanned() {
     const bannedList = document.getElementById('bannedList');
     bannedList.innerHTML = '';
 
-    if (!snapshot.exists()) { bannedBlock.classList.add('hidden'); return; }
+    if (!snapshot.exists()) { bannedBlock.classList.add('hidden'); syncBannedMob(bannedBlock, bannedList); return; }
 
     bannedBlock.classList.remove('hidden');
     snapshot.forEach(child => {
@@ -1269,8 +1269,8 @@ window.kickMember = async function(uid, displayName) {
 
 // ── APPROVE / DENY / BAN FROM PENDING ──
 window.approveMember = async function(uid, displayName) {
-  await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
   await set(ref(db, `groups/${currentGroup.id}/members/${uid}`), { displayName, joinedAt: Date.now() });
+  await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
   toast(`${displayName} approved`);
 };
 
