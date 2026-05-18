@@ -184,6 +184,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 
 .mob-btn {
   flex: 1;
+  position: relative;
   padding: 10px 6px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -237,11 +238,27 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
   margin: 0 auto 16px;
 }
 
-/* Mobile toast moves up above bar */
+.pending-badge {
+  position: absolute;
+  top: 3px; right: 3px;
+  background: var(--neon-pink);
+  color: #fff;
+  font-size: 9px;
+  font-family: 'Bebas Neue', sans-serif;
+  min-width: 14px; height: 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  padding: 0 2px;
+}
+
 @media (max-width:640px) {
   #panel { display: none !important; }
   #map { height: 100dvh; padding-bottom: 65px; }
-  #toast { display: none !important; }
+  #toast { bottom: 80px; }
+  .member-kick { opacity: 1; }
   #hud .hud-title { font-size: 16px; letter-spacing: 2px; }
   #hud .hud-group { padding: 5px 8px; }
   #hud .hud-code { font-size: 13px; letter-spacing: 2px; }
@@ -397,13 +414,14 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
     <button class="panel-btn" onclick="centerMap()">⌖ Center Map</button>
     <button class="panel-btn danger" onclick="resetMyMarkers()">✕ Clear Mine</button>
     <button class="panel-btn danger hidden" id="deleteGroupBtn" onclick="deleteGroupAsOwner()">🗑 Delete Group</button>
+    <button class="panel-btn danger hidden" id="clearAllBtn" onclick="clearAllMarkers()">✕ Clear All Markers</button>
   </div>
 </div>
 
 <!-- MOBILE BAR -->
 <div id="mobileBar">
-  <button class="mob-btn mob-place" onclick="mobilePlaceMarker()">📍 Drop</button>
-  <button class="mob-btn" onclick="toggleDrawer('squad')">👥 Squad</button>
+  <button class="mob-btn mob-place" id="dropMobBtn" onclick="mobilePlaceMarker()">📍 Drop</button>
+  <button class="mob-btn" onclick="toggleDrawer('squad')">👥 Squad<span id="pendingBadge" class="pending-badge hidden"></span></button>
   <button class="mob-btn" onclick="centerMap()">⌖ Center</button>
   <button class="mob-btn" onclick="toggleDrawer('settings')">⚙️ More</button>
 </div>
@@ -435,6 +453,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
     <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:3px;color:var(--muted);margin-bottom:10px">Settings</div>
     <button class="panel-btn danger" onclick="resetMyMarkers()">✕ Clear My Markers</button>
     <button class="panel-btn danger hidden" id="deleteGroupBtnMob" onclick="deleteGroupAsOwner()" style="margin-top:8px">🗑 Delete Group</button>
+    <button class="panel-btn danger hidden" id="clearAllBtnMob" onclick="clearAllMarkers()" style="margin-top:8px">✕ Clear All Markers</button>
     <button class="panel-btn" onclick="leaveGroup()" style="margin-top:8px">← Leave Group</button>
   </div>
 </div>
@@ -494,6 +513,7 @@ function getUserColor(uid) {
 
 // ── UTILS ──
 function toast(msg, duration = 2500) {
+  if (window.innerWidth <= 640 && document.getElementById('map').style.display !== 'block') return;
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
@@ -847,6 +867,8 @@ window.enterMap = function() {
   document.getElementById('hudGroupName').textContent = currentGroup.name;
   document.getElementById('hudGroupCode').textContent = currentGroup.code;
   document.getElementById('deleteGroupBtn').classList.toggle('hidden', !isOwner);
+  document.getElementById('clearAllBtn').classList.toggle('hidden', !isOwner);
+  document.getElementById('clearAllBtnMob').classList.toggle('hidden', !isOwner);
 
   buildCategoryPicker();
   initMap();
@@ -866,6 +888,7 @@ window.enterMap = function() {
 window.leaveGroup = async function() {
   if (!isOwner) {
     if (!confirm('Leave this group?')) return;
+    if (membersUnsub) { membersUnsub(); membersUnsub = null; }
     await remove(ref(db, `groups/${currentGroup.id}/members/${currentUser.uid}`));
     clearSession();
     resetMapUI();
@@ -917,6 +940,7 @@ window.confirmTransfer = async function(newOwnerUid, newOwnerName) {
   // Update Firebase ownership
   await set(ref(db, `groups/${currentGroup.id}/createdBy`), newOwnerUid);
   // Remove old host from members
+  if (membersUnsub) { membersUnsub(); membersUnsub = null; }
   await remove(ref(db, `groups/${currentGroup.id}/members/${currentUser.uid}`));
 
   clearSession();
@@ -1034,6 +1058,8 @@ function listenForGroupDeletion() {
         currentGroup = { ...currentGroup, ownerId: newOwnerId };
         saveSession(currentGroup);
         document.getElementById('deleteGroupBtn').classList.remove('hidden');
+        document.getElementById('clearAllBtn').classList.remove('hidden');
+        document.getElementById('clearAllBtnMob').classList.remove('hidden');
         listenToPending();
         listenToBanned();
         toast('You are now the host 👑');
@@ -1099,6 +1125,16 @@ function listenToMembers() {
   if (membersUnsub) { membersUnsub(); membersUnsub = null; }
 
   membersUnsub = onValue(ref(db, `groups/${currentGroup.id}/members`), snapshot => {
+    if (snapshot.exists() && !snapshot.hasChild(currentUser.uid)) {
+      stopAllListeners();
+      clearMapMarkers();
+      clearSession();
+      currentGroup = null;
+      isOwner = false;
+      toast('You have been removed from this group', 4000);
+      showGroupScreen();
+      return;
+    }
     const list = document.getElementById('memberList');
     list.innerHTML = '';
     syncMemberListMob(snapshot);
@@ -1310,6 +1346,14 @@ window.resetMyMarkers = async function() {
   toast('Your markers cleared');
 };
 
+// ── CLEAR ALL MARKERS (owner) ──
+window.clearAllMarkers = async function() {
+  if (!isOwner) return;
+  if (!confirm('Remove ALL markers from the map? This cannot be undone.')) return;
+  await remove(ref(db, `groupMarkers/${currentGroup.id}`));
+  toast('All markers cleared');
+};
+
 // ── MOBILE DETECTION ──
 const isMobile = () => window.innerWidth <= 640;
 
@@ -1318,7 +1362,7 @@ let currentDrawer = null;
 function showMobileUI() {
   if (!isMobile()) return;
   document.getElementById('mobileBar').classList.add('visible');
-  setTimeout(() => { map.invalidateSize(); map.fitBounds([[0,0],[1024,1024]]); }, 200);
+  setTimeout(() => { map.invalidateSize(); }, 200);
 }
 
 function hideMobileUI() {
@@ -1372,11 +1416,13 @@ function buildCategoryPickerMob() {
 
 // ── MOBILE PLACE MARKER ──
 window.mobilePlaceMarker = function() {
+  if (placingMarker) { cancelPlaceMob(); return; }
   toggleDrawer('drop');
-  // Sync name from desktop input if any
   const mobInput = document.getElementById('markerNameMob');
   buildCategoryPickerMob();
 };
+
+let mobPlaceHandler = null;
 
 window.prepareMarkerMob = async function() {
   const name = document.getElementById('markerNameMob').value.trim();
@@ -1390,15 +1436,21 @@ window.prepareMarkerMob = async function() {
   closedrawer();
   placingMarker = true;
   document.getElementById('map').style.cursor = 'crosshair';
-  toast('Tap the map to drop your marker');
+
+  const dropBtn = document.getElementById('dropMobBtn');
+  if (dropBtn) { dropBtn.textContent = '✕ Cancel'; dropBtn.classList.add('placing'); }
 
   const btn = document.getElementById('placeBtnMob');
   if (btn) { btn.classList.add('placing'); btn.textContent = 'Tap Map...'; }
 
-  map.once('click', async e => {
+  toast('Tap the map to drop your marker');
+
+  mobPlaceHandler = async e => {
+    mobPlaceHandler = null;
     placingMarker = false;
     document.getElementById('map').style.cursor = '';
     if (btn) { btn.classList.remove('placing'); btn.textContent = 'Place Marker'; }
+    if (dropBtn) { dropBtn.textContent = '📍 Drop'; dropBtn.classList.remove('placing'); }
 
     const markerData = {
       lat: e.latlng.lat,
@@ -1414,7 +1466,19 @@ window.prepareMarkerMob = async function() {
     await set(newRef, markerData);
     document.getElementById('markerNameMob').value = '';
     toast(`${selectedCategory} ${name} dropped`);
-  });
+  };
+
+  map.once('click', mobPlaceHandler);
+};
+
+window.cancelPlaceMob = function() {
+  if (mobPlaceHandler) { map.off('click', mobPlaceHandler); mobPlaceHandler = null; }
+  placingMarker = false;
+  document.getElementById('map').style.cursor = '';
+  const btn = document.getElementById('placeBtnMob');
+  if (btn) { btn.classList.remove('placing'); btn.textContent = 'Place Marker'; }
+  const dropBtn = document.getElementById('dropMobBtn');
+  if (dropBtn) { dropBtn.textContent = '📍 Drop'; dropBtn.classList.remove('placing'); }
 };
 
 // ── UPDATE MOBILE LIMIT BAR ──
@@ -1457,6 +1521,12 @@ function syncPendingMob(pendingBlock, pendingList) {
   if (!mobBlock || !mobList) return;
   mobBlock.classList.toggle('hidden', pendingBlock.classList.contains('hidden'));
   mobList.innerHTML = pendingList.innerHTML;
+  const badge = document.getElementById('pendingBadge');
+  if (badge) {
+    const count = mobList.querySelectorAll('.member-item').length;
+    badge.textContent = count;
+    badge.classList.toggle('hidden', count === 0);
+  }
 }
 
 // ── SYNC BANNED TO MOBILE ──
