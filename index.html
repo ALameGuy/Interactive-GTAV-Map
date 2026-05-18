@@ -212,9 +212,9 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 
 #mobileDrawer {
   display: none;
+  visibility: hidden;
   position: fixed;
   bottom: 0; left: 0; right: 0;
-  z-index: 2400;
   background: rgba(8,12,16,0.92);
   border-top: 1px solid var(--border);
   backdrop-filter: blur(24px);
@@ -226,6 +226,8 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 
 #mobileDrawer.open {
   display: block;
+  visibility: visible;
+  z-index: 2400;
 }
 
 .drawer-handle {
@@ -1340,6 +1342,7 @@ let currentDrawer = null;
 function showMobileUI() {
   if (!isMobile()) return;
   document.getElementById('mobileBar').classList.add('visible');
+  setTimeout(() => { map.invalidateSize(); map.fitBounds([[0,0],[1024,1024]]); }, 200);
 }
 
 function hideMobileUI() {
