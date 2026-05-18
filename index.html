@@ -90,9 +90,12 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .panel-input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:3px; padding:9px 10px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:14px; outline:none; }
 .panel-input:focus { border-color:var(--neon-cyan); }
 
-.color-swatches { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.swatch { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent; transition:all .15s; }
-.swatch.selected { border-color:#fff; transform:scale(1.2); }
+.category-picker { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+.cat-btn { width:30px; height:30px; border-radius:50%; cursor:pointer; border:2px solid transparent; background:rgba(255,255,255,0.06); font-size:16px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+.cat-btn:hover { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.4); }
+.cat-btn.selected { border-color:#fff; background:rgba(255,255,255,0.12); transform:scale(1.15); }
+
+.emoji-marker { width:32px; height:32px; border-radius:50%; background:rgba(8,12,16,0.88); border:1.5px solid rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:16px; box-shadow:0 2px 8px rgba(0,0,0,0.6); }
 
 .panel-btn { width:100%; margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:3px; background:rgba(255,255,255,0.03); color:var(--text); font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; transition:all .15s; }
 .panel-btn:hover { background:rgba(0,245,255,0.07); border-color:var(--neon-cyan); color:var(--neon-cyan); }
@@ -233,7 +236,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
   <div class="panel-block">
     <h3>Drop Marker</h3>
     <input type="text" id="markerName" class="panel-input" placeholder="Location name" maxlength="30" />
-    <div class="color-swatches" id="swatches"></div>
+    <div class="category-picker" id="categoryPicker"></div>
     <div class="limit-bar-wrap">
       <div class="limit-label"><span>Your markers</span><span id="limitCount">0 / 20</span></div>
       <div class="limit-bar"><div class="limit-bar-fill" id="limitFill" style="width:0%"></div></div>
@@ -245,7 +248,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
     <div class="member-list" id="memberList"></div>
   </div>
   <div class="panel-block">
-    <button class="panel-btn" onclick="refreshAll()">↻ Refresh</button>
+    <button class="panel-btn" onclick="centerMap()">⌖ Center Map</button>
     <button class="panel-btn danger" onclick="resetMyMarkers()">✕ Clear Mine</button>
   </div>
 </div>
@@ -282,20 +285,13 @@ let currentGroup = null; // { id, name, code, ownerId }
 let map = null;
 let leafletMarkers = {};
 let placingMarker = false;
-let selectedColor = 'cyan';
+let selectedCategory = '📍';
 let groupListener = null;
 let myMarkerCount = 0;
 let isOwner = false;
 
-// ── COLORS ──
-const COLORS = {
-  cyan:   { hex: '#00f5ff', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' },
-  pink:   { hex: '#ff2d78', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png' },
-  yellow: { hex: '#f7ff00', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png' },
-  green:  { hex: '#39ff14', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png' },
-  orange: { hex: '#ff8c00', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png' },
-  violet: { hex: '#bf00ff', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png' },
-};
+// ── CATEGORIES ──
+const CATEGORIES = ['📍','💀','⭐','🏠','🚗','💊','🔫','💣','🚁'];
 
 const USER_COLORS = ['#00f5ff','#ff2d78','#f7ff00','#39ff14','#ff8c00','#bf00ff'];
 function getUserColor(uid) {
@@ -334,18 +330,17 @@ function clearSession() {
   localStorage.removeItem('squadmap_group');
 }
 
-// ── SWATCHES ──
-function buildSwatches() {
-  const c = document.getElementById('swatches');
+// ── CATEGORY PICKER ──
+function buildCategoryPicker() {
+  const c = document.getElementById('categoryPicker');
   c.innerHTML = '';
-  for (const [name, data] of Object.entries(COLORS)) {
-    const s = document.createElement('div');
-    s.className = 'swatch' + (name === selectedColor ? ' selected' : '');
-    s.style.background = data.hex;
-    s.style.boxShadow = `0 0 8px ${data.hex}60`;
-    s.title = name;
-    s.onclick = () => { selectedColor = name; buildSwatches(); };
-    c.appendChild(s);
+  for (const emoji of CATEGORIES) {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (emoji === selectedCategory ? ' selected' : '');
+    btn.textContent = emoji;
+    btn.title = emoji;
+    btn.onclick = () => { selectedCategory = emoji; buildCategoryPicker(); };
+    c.appendChild(btn);
   }
 }
 
@@ -397,6 +392,17 @@ window.doRejoin = async function() {
   }
 
   const data = snap.val();
+
+  // Check banned list
+  const bannedSnap = await get(ref(db, `groups/${saved.id}/banned/${currentUser.uid}`));
+  if (bannedSnap.exists()) {
+    clearSession();
+    toast('You are banned from this group');
+    document.getElementById('rejoinBanner').style.display = 'none';
+    document.getElementById('groupMainUI').classList.remove('hidden');
+    return;
+  }
+
   currentGroup = { id: saved.id, name: data.name, code: data.code, ownerId: data.createdBy };
 
   // Re-register as member
@@ -479,6 +485,10 @@ window.joinGroup = async function() {
 
   if (!found) { errEl.style.display = 'block'; return; }
 
+  // Check banned list
+  const bannedSnap = await get(ref(db, `groups/${found.id}/banned/${currentUser.uid}`));
+  if (bannedSnap.exists()) { toast('You are banned from this group'); return; }
+
   await set(ref(db, `groups/${found.id}/members/${currentUser.uid}`), {
     displayName: currentUser.email.split('@')[0],
     joinedAt: Date.now()
@@ -503,7 +513,7 @@ window.enterMap = function() {
   document.getElementById('panel').classList.remove('hidden');
   document.getElementById('hudGroupName').textContent = currentGroup.name;
   document.getElementById('hudGroupCode').textContent = currentGroup.code;
-  buildSwatches();
+  buildCategoryPicker();
   initMap();
 };
 
@@ -585,21 +595,21 @@ function clearMapMarkers() {
 }
 
 function addMarker(data, key) {
-  const colorData = COLORS[data.color] || COLORS.cyan;
-  const marker = L.marker([data.lat, data.lng], {
-    icon: L.icon({
-      iconUrl: colorData.icon,
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
-    })
-  }).addTo(map);
+  const emoji = data.category || '📍';
+  const icon = L.divIcon({
+    className: '',
+    html: `<div class="emoji-marker">${emoji}</div>`,
+    iconSize: [32,32], iconAnchor: [16,16], popupAnchor: [0,-18]
+  });
+
+  const marker = L.marker([data.lat, data.lng], { icon }).addTo(map);
 
   const canDelete = data.placedBy === currentUser.uid || isOwner;
   const timeStr = data.placedAt ? timeAgo(data.placedAt) : '';
 
   marker.bindPopup(`
     <div class="popup-name">${data.name}</div>
-    <div class="popup-meta">📍 ${data.displayName || 'Unknown'}</div>
+    <div class="popup-meta">by ${data.displayName || 'Unknown'}</div>
     ${timeStr ? `<div class="popup-time">🕐 ${timeStr}</div>` : ''}
     ${canDelete ? `<button class="popup-delete" onclick="window.deleteMarker('${key}')">Remove</button>` : ''}
   `);
@@ -608,11 +618,15 @@ function addMarker(data, key) {
 }
 
 // ── PLACE MARKER ──
-window.prepareMarker = function() {
+window.prepareMarker = async function() {
   const name = document.getElementById('markerName').value.trim();
   if (!name) { toast('Enter a location name first'); return; }
   if (myMarkerCount >= MARKER_LIMIT) { toast(`Marker limit reached (${MARKER_LIMIT} max)`); return; }
   if (placingMarker) return;
+
+  // Verify still a member
+  const memberSnap = await get(ref(db, `groups/${currentGroup.id}/members/${currentUser.uid}`));
+  if (!memberSnap.exists()) { toast('You have been removed from this group'); return; }
 
   placingMarker = true;
   document.getElementById('map').style.cursor = 'crosshair';
@@ -630,7 +644,7 @@ window.prepareMarker = function() {
       lat: e.latlng.lat,
       lng: e.latlng.lng,
       name,
-      color: selectedColor,
+      category: selectedCategory,
       placedBy: currentUser.uid,
       displayName: currentUser.email.split('@')[0],
       placedAt: Date.now()
@@ -639,7 +653,7 @@ window.prepareMarker = function() {
     const newRef = push(ref(db, `groupMarkers/${currentGroup.id}`));
     await set(newRef, markerData);
     document.getElementById('markerName').value = '';
-    toast(`📍 ${name} dropped`);
+    toast(`${selectedCategory} ${name} dropped`);
   });
 };
 
@@ -655,6 +669,7 @@ window.kickMember = async function(uid, displayName) {
   if (!confirm(`Remove ${displayName} from the group?`)) return;
 
   await remove(ref(db, `groups/${currentGroup.id}/members/${uid}`));
+  await set(ref(db, `groups/${currentGroup.id}/banned/${uid}`), true);
 
   // Remove their markers
   const snap = await get(ref(db, `groupMarkers/${currentGroup.id}`));
@@ -671,11 +686,9 @@ window.kickMember = async function(uid, displayName) {
   loadMembers();
 };
 
-// ── REFRESH ──
-window.refreshAll = function() {
-  listenToMarkers();
-  loadMembers();
-  toast('Synced ✓');
+// ── CENTER MAP ──
+window.centerMap = function() {
+  map.fitBounds([[0,0],[1024,1024]]);
 };
 
 // ── CLEAR MY MARKERS ──
