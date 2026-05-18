@@ -222,13 +222,10 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
   padding: 16px 16px 100px;
   max-height: 55vh;
   overflow-y: auto;
-  transform: translateY(100%);
-  transition: transform .3s cubic-bezier(.4,0,.2,1);
 }
 
 #mobileDrawer.open {
   display: block;
-  transform: translateY(0);
 }
 
 .drawer-handle {
@@ -241,6 +238,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 /* Mobile toast moves up above bar */
 @media (max-width:640px) {
   #panel { display: none !important; }
+  #map { height: 100dvh; padding-bottom: 65px; }
   #toast { bottom: 80px; }
   #hud .hud-title { font-size: 16px; letter-spacing: 2px; }
   #hud .hud-group { padding: 5px 8px; }
@@ -835,6 +833,10 @@ window.copyCode = function() {
 // ── ENTER MAP ──
 window.enterMap = function() {
   isOwner = currentGroup.ownerId === currentUser.uid;
+
+  // Always hide group screen when entering map
+  document.getElementById('groupScreen').classList.add('hidden');
+  document.getElementById('waitScreen').classList.add('hidden');
 
   // Make map visible BEFORE initializing Leaflet so it can calculate dimensions
   document.getElementById('map').style.display = 'block';
