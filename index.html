@@ -1132,7 +1132,7 @@ function listenToPending() {
     const pendingList = document.getElementById('pendingList');
     pendingList.innerHTML = '';
 
-    if (!snapshot.exists()) { pendingBlock.classList.add('hidden'); return; }
+    if (!snapshot.exists()) { pendingBlock.classList.add('hidden'); syncPendingMob(pendingBlock, pendingList); return; }
 
     const now = Date.now();
     const staleDeletes = [];
@@ -1308,30 +1308,6 @@ window.resetMyMarkers = async function() {
   });
   await Promise.all(deletes);
   toast('Your markers cleared');
-};
-
-// ── APPROVE / DENY / BAN FROM PENDING ──
-window.approveMember = async function(uid, displayName) {
-  await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
-  await set(ref(db, `groups/${currentGroup.id}/members/${uid}`), { displayName, joinedAt: Date.now() });
-  toast(`${displayName} approved`);
-};
-
-window.denyMember = async function(uid) {
-  await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
-  toast('Request denied');
-};
-
-window.banFromPending = async function(uid, displayName) {
-  await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
-  await set(ref(db, `groups/${currentGroup.id}/banned/${uid}`), { uid, displayName });
-  toast(`${displayName} banned`);
-};
-
-window.unbanMember = async function(uid, displayName) {
-  if (!confirm(`Unban ${displayName}?`)) return;
-  await remove(ref(db, `groups/${currentGroup.id}/banned/${uid}`));
-  toast(`${displayName} unbanned`);
 };
 
 // ── MOBILE DETECTION ──
