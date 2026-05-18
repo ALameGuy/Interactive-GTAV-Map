@@ -3,410 +3,820 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Goat's Interactive GTAV Map</title>
-
+<title>GTAV Squad Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-* {
-    box-sizing: border-box;
+:root {
+  --neon-pink: #ff2d78;
+  --neon-cyan: #00f5ff;
+  --neon-yellow: #f7ff00;
+  --dark: #080c10;
+  --dark2: #0d1117;
+  --panel: rgba(8, 12, 16, 0.92);
+  --border: rgba(0, 245, 255, 0.18);
+  --text: #e8f4f8;
+  --muted: #6b8a94;
 }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
-    background: #111;
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--dark);
+  color: var(--text);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
 }
 
-#map {
-    width: 100vw;
-    height: 100vh;
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+  pointer-events: none;
+  z-index: 9999;
 }
 
-.hidden {
-    display: none !important;
+#map { width: 100vw; height: 100vh; background: #0a0f14; }
+.hidden { display: none !important; }
+
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 40%, #0d1f2d 0%, #080c10 70%);
 }
 
-#branding {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 2000;
-    background: rgba(0,0,0,0.75);
-    color: white;
-    padding: 10px 18px;
-    border-radius: 10px;
-    font-weight: bold;
-    text-align: center;
-    backdrop-filter: blur(6px);
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255,45,120,0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0,245,255,0.10) 0%, transparent 50%);
+  pointer-events: none;
 }
 
-#loginForm {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 350px;
-    background: rgba(0,0,0,0.85);
-    color: white;
-    padding: 25px;
-    border-radius: 14px;
-    z-index: 3000;
-    text-align: center;
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 40px 36px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 0 40px rgba(0,245,255,0.06), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 
-#loginForm input {
-    width: 100%;
-    padding: 10px;
-    margin-top: 6px;
-    margin-bottom: 16px;
-    border: none;
-    border-radius: 8px;
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan));
 }
 
-#loginForm button {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    background: #22c55e;
-    color: white;
-    font-weight: bold;
-    cursor: pointer;
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: var(--neon-cyan);
+  text-align: center;
+  margin-bottom: 8px;
+  opacity: 0.7;
 }
 
-#loginError {
-    color: #f87171;
-    font-size: 14px;
-    margin-top: -10px;
-    margin-bottom: 10px;
-    display: none;
+.card h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 36px;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-bottom: 28px;
+  background: linear-gradient(135deg, #fff 30%, var(--neon-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.marker-controls {
-    position: absolute;
-    top: 70px;
-    right: 10px;
-    width: 250px;
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-    background: rgba(0,0,0,0.85);
-    color: white;
-    padding: 14px;
-    border-radius: 12px;
-    z-index: 2000;
+.field-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  margin-top: 16px;
 }
 
-.marker-controls input,
-.marker-controls select,
-.marker-controls button {
-    width: 100%;
-    margin-top: 8px;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.marker-controls button {
-    cursor: pointer;
-    font-weight: bold;
+input:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 0 3px rgba(0,245,255,0.08);
 }
 
-#tutorialSidebar {
-    position: absolute;
-    top: 70px;
-    left: 10px;
-    width: 300px;
-    max-width: calc(100vw - 20px);
-    max-height: calc(100vh - 80px);
-    overflow-y: auto;
-    background: rgba(0,0,0,0.9);
-    color: white;
-    padding: 16px;
-    border-radius: 12px;
-    z-index: 2000;
+.btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 13px;
+  border: none;
+  border-radius: 3px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 18px;
+  letter-spacing: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
 }
 
-#tutorialSidebar h2 {
-    margin-top: 0;
+.btn-primary {
+  background: linear-gradient(135deg, var(--neon-pink), #c4006a);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255,45,120,0.3);
 }
 
-#closeTutorial {
-    float: right;
-    cursor: pointer;
-    font-size: 20px;
-    font-weight: bold;
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(255,45,120,0.45); }
+
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--neon-cyan);
+  margin-top: 10px;
 }
+
+.btn-secondary:hover { background: rgba(0,245,255,0.06); border-color: var(--neon-cyan); }
+
+.error-msg {
+  color: var(--neon-pink);
+  font-size: 13px;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  text-align: center;
+  display: none;
+}
+
+.group-card { max-width: 460px; }
+
+.group-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.group-option {
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 20px 14px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  background: rgba(255,255,255,0.02);
+}
+
+.group-option:hover, .group-option.active {
+  border-color: var(--neon-cyan);
+  background: rgba(0,245,255,0.05);
+}
+
+.opt-icon { font-size: 28px; display: block; margin-bottom: 6px; }
+.opt-label { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px; color: var(--neon-cyan); }
+.opt-desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.code-display {
+  background: rgba(0,245,255,0.06);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 3px;
+  padding: 18px;
+  text-align: center;
+  margin-top: 16px;
+}
+
+.code-label { font-size: 11px; letter-spacing: 3px; color: var(--muted); margin-bottom: 8px; }
+
+.code-value {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 42px;
+  letter-spacing: 10px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 20px rgba(0,245,255,0.5);
+}
+
+.code-hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+/* HUD */
+#hud {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 2000;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(180deg, rgba(8,12,16,0.95) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+#hud > * { pointer-events: all; }
+
+.hud-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg, #fff, var(--neon-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hud-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.group-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--neon-cyan);
+  box-shadow: 0 0 8px var(--neon-cyan);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.hud-code {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 16px;
+  letter-spacing: 3px;
+  color: var(--neon-cyan);
+}
+
+/* PANEL */
+#panel {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  width: 240px;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-block {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px;
+  backdrop-filter: blur(16px);
+}
+
+.panel-block h3 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.panel-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 9px 10px;
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  outline: none;
+}
+
+.panel-input:focus { border-color: var(--neon-cyan); }
+
+.color-swatches { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+.swatch {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.swatch.selected { border-color: #fff; transform: scale(1.2); }
+
+.panel-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: rgba(255,255,255,0.03);
+  color: var(--text);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.panel-btn:hover { background: rgba(0,245,255,0.07); border-color: var(--neon-cyan); color: var(--neon-cyan); }
+.panel-btn.danger:hover { background: rgba(255,45,120,0.08); border-color: var(--neon-pink); color: var(--neon-pink); }
+
+.panel-btn.placing {
+  background: rgba(255,45,120,0.12);
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+  animation: bpulse 1s infinite;
+}
+
+@keyframes bpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,45,120,0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(255,45,120,0); }
+}
+
+.member-list { display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto; }
+
+.member-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+.member-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* TOAST */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(60px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 10px 20px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  z-index: 9000;
+  transition: transform 0.3s;
+  backdrop-filter: blur(16px);
+  white-space: nowrap;
+}
+
+#toast.show { transform: translateX(-50%) translateY(0); }
+
+/* POPUP */
+.leaflet-popup-content-wrapper {
+  background: var(--panel) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 4px !important;
+  color: var(--text) !important;
+  font-family: 'Rajdhani', sans-serif !important;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+}
+
+.leaflet-popup-tip { background: var(--panel) !important; }
+
+.popup-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: #fff; }
+.popup-meta { font-size: 12px; letter-spacing: 1px; color: var(--muted); margin-top: 2px; }
+
+.popup-delete {
+  margin-top: 10px;
+  padding: 7px 14px;
+  background: rgba(255,45,120,0.12);
+  border: 1px solid rgba(255,45,120,0.3);
+  border-radius: 3px;
+  color: var(--neon-pink);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.popup-delete:hover { background: rgba(255,45,120,0.22); }
 
 .leaflet-control-zoom {
-    margin-bottom: 20px !important;
-    margin-left: 10px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 3px !important;
+  overflow: hidden;
+  margin-bottom: 20px !important;
+  margin-left: 12px !important;
 }
 
-@media (max-width: 768px) {
-    .marker-controls {
-        width: calc(100vw - 20px);
-        top: auto;
-        bottom: 10px;
-        right: 10px;
-        max-height: 45vh;
-    }
+.leaflet-control-zoom a {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+}
 
-    #tutorialSidebar {
-        width: calc(100vw - 20px);
-    }
+.leaflet-control-zoom a:hover { background: rgba(0,245,255,0.08) !important; color: var(--neon-cyan) !important; }
 
-    #branding {
-        width: calc(100vw - 20px);
-        font-size: 14px;
-    }
+@media (max-width: 640px) {
+  #panel { top: auto; bottom: 12px; right: 12px; left: 12px; width: auto; flex-direction: row; flex-wrap: wrap; }
+  .panel-block { flex: 1; min-width: 140px; }
 }
 </style>
 </head>
 <body>
 
-<div id="branding" class="hidden">
-    Goat's Interactive GTAV Map
+<!-- LOGIN -->
+<div class="screen" id="loginScreen">
+  <div class="card">
+    <div class="logo">GTAV · SQUAD MAP</div>
+    <h2>Sign In</h2>
+    <div class="field-label">Email</div>
+    <input type="email" id="loginEmail" placeholder="your@email.com" />
+    <div class="field-label">Password</div>
+    <input type="password" id="loginPassword" placeholder="••••••••" />
+    <div class="error-msg" id="loginError">Invalid credentials. Try again.</div>
+    <button class="btn btn-primary" onclick="doLogin()">Enter</button>
+  </div>
 </div>
 
-<div id="loginForm">
-    <h2>Login</h2>
-    <input type="email" id="username" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <div id="loginError">Invalid email or password.</div>
-    <button onclick="login()">Login</button>
+<!-- GROUP -->
+<div class="screen hidden" id="groupScreen">
+  <div class="card group-card">
+    <div class="logo">GTAV · SQUAD MAP</div>
+    <h2>Your Squad</h2>
+    <div class="group-options">
+      <div class="group-option" id="optCreate" onclick="selectGroupOpt('create')">
+        <span class="opt-icon">⚡</span>
+        <div class="opt-label">Create</div>
+        <div class="opt-desc">Start a new group</div>
+      </div>
+      <div class="group-option" id="optJoin" onclick="selectGroupOpt('join')">
+        <span class="opt-icon">🔗</span>
+        <div class="opt-label">Join</div>
+        <div class="opt-desc">Enter a group code</div>
+      </div>
+    </div>
+
+    <div id="createFlow" class="hidden">
+      <div class="field-label" style="margin-top:16px">Group Name</div>
+      <input type="text" id="groupNameInput" placeholder="e.g. Los Santos Crew" />
+      <button class="btn btn-primary" onclick="createGroup()">Create Group</button>
+    </div>
+
+    <div id="joinFlow" class="hidden">
+      <div class="field-label" style="margin-top:16px">Group Code</div>
+      <input type="text" id="groupCodeInput" placeholder="A3K9PZ" maxlength="6"
+        style="text-transform:uppercase;letter-spacing:4px;font-size:20px;text-align:center" />
+      <button class="btn btn-primary" onclick="joinGroup()">Join Group</button>
+    </div>
+
+    <div id="codeDisplay" class="hidden">
+      <div class="code-display">
+        <div class="code-label">Share this code with your crew</div>
+        <div class="code-value" id="generatedCode">------</div>
+        <div class="code-hint">They enter this to join your group</div>
+      </div>
+      <button class="btn btn-primary" onclick="enterMap()">Enter Map →</button>
+    </div>
+
+    <div class="error-msg" id="groupError">Group not found. Check the code.</div>
+  </div>
 </div>
 
-<div id="tutorialSidebar" class="hidden">
-    <span id="closeTutorial" onclick="toggleTutorial()">×</span>
-    <h2>Tutorial</h2>
-    <ul>
-        <li>Enter a marker name.</li>
-        <li>Select a marker color.</li>
-        <li>Press Prepare Marker.</li>
-        <li>Click anywhere on the map.</li>
-        <li>Markers save automatically.</li>
-        <li>Use Refresh to sync devices.</li>
-        <li>Click markers to remove them.</li>
-    </ul>
+<!-- MAP -->
+<div id="map"></div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-title">SQUAD MAP</div>
+  <div class="hud-group">
+    <div class="group-dot"></div>
+    <span id="hudGroupName" style="font-size:13px;letter-spacing:1px;color:var(--muted)"></span>
+    <span class="hud-code" id="hudGroupCode"></span>
+  </div>
 </div>
 
-<div class="marker-controls hidden" id="controls">
-    <label>Marker Name</label>
-    <input type="text" id="markerName" placeholder="Enter marker name" />
-
-    <label>Marker Color</label>
-    <select id="markerColor">
-        <option value="red">Red</option>
-        <option value="blue">Blue</option>
-        <option value="green">Green</option>
-        <option value="orange">Orange</option>
-        <option value="yellow">Yellow</option>
-        <option value="violet">Violet</option>
-    </select>
-
-    <button onclick="prepareMarker()">Prepare Marker</button>
-    <button onclick="refreshMarkers()">Refresh Markers</button>
-    <button onclick="resetMarkers()">Reset Markers</button>
-    <button onclick="toggleTutorial()">Show Tutorial</button>
+<!-- PANEL -->
+<div id="panel" class="hidden">
+  <div class="panel-block">
+    <h3>Drop Marker</h3>
+    <input type="text" id="markerName" class="panel-input" placeholder="Location name" />
+    <div class="color-swatches" id="swatches"></div>
+    <button class="panel-btn" id="placeBtn" onclick="prepareMarker()">Place Marker</button>
+  </div>
+  <div class="panel-block">
+    <h3>Squad</h3>
+    <div class="member-list" id="memberList"></div>
+  </div>
+  <div class="panel-block">
+    <button class="panel-btn" onclick="refreshMarkers()">↻ Refresh</button>
+    <button class="panel-btn danger" onclick="resetMyMarkers()">✕ Clear Mine</button>
+  </div>
 </div>
 
-<div id="map" class="hidden"></div>
+<div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
 <script type="module">
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getDatabase, ref, push, set, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { getDatabase, ref, push, set, get, remove, onValue, off } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 
 const firebaseConfig = {
-    apiKey: 'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4',
-    authDomain: 'map-v2-6b2e4.firebaseapp.com',
-    databaseURL: 'https://map-v2-6b2e4-default-rtdb.firebaseio.com',
-    projectId: 'map-v2-6b2e4',
-    storageBucket: 'map-v2-6b2e4.appspot.com',
-    messagingSenderId: '216550808002',
-    appId: '1:216550808002:web:3443680b0ebfebbae09e5b'
+  apiKey: 'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4',
+  authDomain: 'map-v2-6b2e4.firebaseapp.com',
+  databaseURL: 'https://map-v2-6b2e4-default-rtdb.firebaseio.com',
+  projectId: 'map-v2-6b2e4',
+  storageBucket: 'map-v2-6b2e4.appspot.com',
+  messagingSenderId: '216550808002',
+  appId: '1:216550808002:web:3443680b0ebfebbae09e5b'
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const database = getDatabase(app);
-
-window.auth = auth;
-window.database = database;
-window.signInWithEmailAndPassword = signInWithEmailAndPassword;
-window.ref = ref;
-window.push = push;
-window.set = set;
-window.get = get;
-window.remove = remove;
+const db = getDatabase(app);
 
 let currentUser = null;
-let map;
-let markers = [];
+let currentGroup = null;
+let map = null;
+let markers = {};
 let placingMarker = false;
+let selectedColor = 'cyan';
+let groupListener = null;
 
-const markerIcons = {
-    red:    'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-    blue:   'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-    green:  'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
-    orange: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png',
-    yellow: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png',
-    violet: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png'
+const COLORS = {
+  cyan:   { hex: '#00f5ff', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png' },
+  pink:   { hex: '#ff2d78', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png' },
+  yellow: { hex: '#f7ff00', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-gold.png' },
+  green:  { hex: '#39ff14', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png' },
+  orange: { hex: '#ff8c00', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png' },
+  violet: { hex: '#bf00ff', icon: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-violet.png' },
 };
 
-window.login = async function() {
-    const email = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const errorEl = document.getElementById('loginError');
-    errorEl.style.display = 'none';
+const USER_COLORS = ['#00f5ff','#ff2d78','#f7ff00','#39ff14','#ff8c00','#bf00ff'];
 
-    try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        currentUser = userCredential.user;
+function getUserColor(uid) {
+  let hash = 0;
+  for (let c of uid) hash = (hash * 31 + c.charCodeAt(0)) & 0xffffffff;
+  return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
+}
 
-        document.getElementById('loginForm').classList.add('hidden');
-        document.getElementById('map').classList.remove('hidden');
-        document.getElementById('branding').classList.remove('hidden');
-        document.getElementById('controls').classList.remove('hidden');
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
 
-        initializeMap();
+function buildSwatches() {
+  const container = document.getElementById('swatches');
+  container.innerHTML = '';
+  for (const [name, data] of Object.entries(COLORS)) {
+    const s = document.createElement('div');
+    s.className = 'swatch' + (name === selectedColor ? ' selected' : '');
+    s.style.background = data.hex;
+    s.style.boxShadow = `0 0 8px ${data.hex}60`;
+    s.title = name;
+    s.onclick = () => { selectedColor = name; buildSwatches(); };
+    container.appendChild(s);
+  }
+}
 
-    } catch(error) {
-        errorEl.style.display = 'block';
-        console.error(error);
-    }
+window.selectGroupOpt = function(opt) {
+  document.getElementById('optCreate').classList.toggle('active', opt === 'create');
+  document.getElementById('optJoin').classList.toggle('active', opt === 'join');
+  document.getElementById('createFlow').classList.toggle('hidden', opt !== 'create');
+  document.getElementById('joinFlow').classList.toggle('hidden', opt !== 'join');
+  document.getElementById('codeDisplay').classList.add('hidden');
+  document.getElementById('groupError').style.display = 'none';
 };
 
-// Allow pressing Enter to log in
-document.getElementById('password').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') window.login();
+window.doLogin = async function() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    currentUser = cred.user;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('groupScreen').classList.remove('hidden');
+  } catch(e) {
+    errEl.style.display = 'block';
+  }
+};
+
+document.getElementById('loginPassword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') window.doLogin();
 });
 
-function initializeMap() {
-    map = L.map('map', {
-        crs: L.CRS.Simple,
-        minZoom: -5,
-        zoomControl: false
-    });
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
+}
 
-    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+window.createGroup = async function() {
+  const name = document.getElementById('groupNameInput').value.trim();
+  if (!name) { toast('Enter a group name'); return; }
 
-    // High-res GTA V map image
-    const imageUrl = 'https://i.imgur.com/6pdBDOZ.jpeg';
-    const bounds = [[0, 0], [1024, 1024]];
+  const code = generateCode();
+  const groupRef = push(ref(db, 'groups'));
+  await set(groupRef, { name, code, createdBy: currentUser.uid, createdAt: Date.now() });
 
-    L.imageOverlay(imageUrl, bounds).addTo(map);
-    map.fitBounds(bounds);
+  await set(ref(db, `groups/${groupRef.key}/members/${currentUser.uid}`), {
+    displayName: currentUser.email.split('@')[0],
+    joinedAt: Date.now()
+  });
 
-    loadMarkers();
+  currentGroup = { id: groupRef.key, name, code };
+  document.getElementById('createFlow').classList.add('hidden');
+  document.getElementById('codeDisplay').classList.remove('hidden');
+  document.getElementById('generatedCode').textContent = code;
+};
+
+window.joinGroup = async function() {
+  const code = document.getElementById('groupCodeInput').value.trim().toUpperCase();
+  const errEl = document.getElementById('groupError');
+  errEl.style.display = 'none';
+
+  if (code.length !== 6) { toast('Enter a 6-character code'); return; }
+
+  const groupsSnap = await get(ref(db, 'groups'));
+  if (!groupsSnap.exists()) { errEl.style.display = 'block'; return; }
+
+  let found = null;
+  groupsSnap.forEach(child => {
+    if (child.val().code === code) found = { id: child.key, ...child.val() };
+  });
+
+  if (!found) { errEl.style.display = 'block'; return; }
+
+  await set(ref(db, `groups/${found.id}/members/${currentUser.uid}`), {
+    displayName: currentUser.email.split('@')[0],
+    joinedAt: Date.now()
+  });
+
+  currentGroup = { id: found.id, name: found.name, code: found.code };
+  enterMap();
+};
+
+window.enterMap = function() {
+  document.getElementById('groupScreen').classList.add('hidden');
+  document.getElementById('hud').classList.remove('hidden');
+  document.getElementById('panel').classList.remove('hidden');
+  document.getElementById('hudGroupName').textContent = currentGroup.name;
+  document.getElementById('hudGroupCode').textContent = currentGroup.code;
+  buildSwatches();
+  initMap();
+};
+
+function initMap() {
+  map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, zoomControl: false });
+  L.control.zoom({ position: 'bottomleft' }).addTo(map);
+  const bounds = [[0,0],[1024,1024]];
+  L.imageOverlay('https://i.imgur.com/6pdBDOZ.jpeg', bounds).addTo(map);
+  map.fitBounds(bounds);
+  listenToMarkers();
+  loadMembers();
+}
+
+function listenToMarkers() {
+  const markerRef = ref(db, `groupMarkers/${currentGroup.id}`);
+  if (groupListener) off(markerRef, 'value', groupListener);
+  groupListener = onValue(markerRef, snapshot => {
+    clearMapMarkers();
+    if (!snapshot.exists()) return;
+    snapshot.forEach(child => addMarker(child.val(), child.key));
+  });
+}
+
+function clearMapMarkers() {
+  for (const m of Object.values(markers)) map.removeLayer(m);
+  markers = {};
+}
+
+function addMarker(data, key) {
+  const colorData = COLORS[data.color] || COLORS.cyan;
+  const marker = L.marker([data.lat, data.lng], {
+    icon: L.icon({
+      iconUrl: colorData.icon,
+      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+      iconSize: [25,41], iconAnchor: [12,41], popupAnchor: [1,-34], shadowSize: [41,41]
+    })
+  }).addTo(map);
+
+  const canDelete = data.placedBy === currentUser.uid;
+  marker.bindPopup(`
+    <div class="popup-name">${data.name}</div>
+    <div class="popup-meta">📍 ${data.displayName || 'Unknown'}</div>
+    ${canDelete ? `<button class="popup-delete" onclick="window.deleteMarker('${key}')">Remove</button>` : ''}
+  `);
+  markers[key] = marker;
 }
 
 window.prepareMarker = function() {
-    const markerName = document.getElementById('markerName').value.trim();
-    const markerColor = document.getElementById('markerColor').value;
+  const name = document.getElementById('markerName').value.trim();
+  if (!name) { toast('Enter a location name first'); return; }
+  if (placingMarker) return;
 
-    if (!markerName) {
-        alert('Enter a marker name first');
-        return;
-    }
+  placingMarker = true;
+  document.getElementById('map').style.cursor = 'crosshair';
+  const btn = document.getElementById('placeBtn');
+  btn.classList.add('placing');
+  btn.textContent = 'Click on Map...';
 
-    if (placingMarker) return;
-    placingMarker = true;
+  map.once('click', async e => {
+    placingMarker = false;
+    document.getElementById('map').style.cursor = '';
+    btn.classList.remove('placing');
+    btn.textContent = 'Place Marker';
 
-    // Visual feedback that we're waiting for a click
-    document.getElementById('map').style.cursor = 'crosshair';
+    const markerData = {
+      lat: e.latlng.lat,
+      lng: e.latlng.lng,
+      name,
+      color: selectedColor,
+      placedBy: currentUser.uid,
+      displayName: currentUser.email.split('@')[0],
+      placedAt: Date.now()
+    };
 
-    map.once('click', async function(e) {
-        placingMarker = false;
-        document.getElementById('map').style.cursor = '';
-
-        const markerData = {
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-            name: markerName,
-            color: markerColor
-        };
-
-        const markersRef = ref(database, 'markers/' + currentUser.uid);
-        const newMarkerRef = push(markersRef);
-        await set(newMarkerRef, markerData);
-
-        addMarker(markerData, newMarkerRef.key);
-
-        // Clear the name field after placing
-        document.getElementById('markerName').value = '';
-    });
+    const newRef = push(ref(db, `groupMarkers/${currentGroup.id}`));
+    await set(newRef, markerData);
+    document.getElementById('markerName').value = '';
+    toast(`📍 ${name} dropped`);
+  });
 };
 
-async function loadMarkers() {
-    clearMapMarkers();
+window.deleteMarker = async function(key) {
+  await remove(ref(db, `groupMarkers/${currentGroup.id}/${key}`));
+  toast('Marker removed');
+};
 
-    const markersRef = ref(database, 'markers/' + currentUser.uid);
-    const snapshot = await get(markersRef);
+window.refreshMarkers = function() {
+  listenToMarkers();
+  loadMembers();
+  toast('Synced ✓');
+};
 
-    if (!snapshot.exists()) return;
+window.resetMyMarkers = async function() {
+  if (!confirm('Remove all YOUR markers from this group?')) return;
+  const snap = await get(ref(db, `groupMarkers/${currentGroup.id}`));
+  if (!snap.exists()) return;
+  const deletes = [];
+  snap.forEach(child => {
+    if (child.val().placedBy === currentUser.uid)
+      deletes.push(remove(ref(db, `groupMarkers/${currentGroup.id}/${child.key}`)));
+  });
+  await Promise.all(deletes);
+  toast('Your markers cleared');
+};
 
-    const data = snapshot.val();
-    Object.keys(data).forEach(key => {
-        addMarker(data[key], key);
-    });
+async function loadMembers() {
+  const snap = await get(ref(db, `groups/${currentGroup.id}/members`));
+  const list = document.getElementById('memberList');
+  list.innerHTML = '';
+  if (!snap.exists()) return;
+  snap.forEach(child => {
+    const data = child.val();
+    const uid = child.key;
+    const div = document.createElement('div');
+    div.className = 'member-item';
+    div.innerHTML = `
+      <div class="member-dot" style="background:${getUserColor(uid)};box-shadow:0 0 6px ${getUserColor(uid)}"></div>
+      <span style="font-size:13px">${data.displayName}</span>
+      ${uid === currentUser.uid ? '<span style="font-size:11px;color:var(--muted);margin-left:auto">you</span>' : ''}
+    `;
+    list.appendChild(div);
+  });
 }
-
-function addMarker(markerData, firebaseKey) {
-    const marker = L.marker([markerData.lat, markerData.lng], {
-        icon: L.icon({
-            iconUrl: markerIcons[markerData.color] || markerIcons.red,
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        })
-    }).addTo(map);
-
-    marker.firebaseKey = firebaseKey;
-
-    marker.bindPopup(`
-        <b>${markerData.name}</b><br><br>
-        <button onclick="deleteMarker('${firebaseKey}')">Remove Marker</button>
-    `);
-
-    markers.push(marker);
-}
-
-window.deleteMarker = async function(firebaseKey) {
-    if (!firebaseKey) return;
-    await remove(ref(database, 'markers/' + currentUser.uid + '/' + firebaseKey));
-    await loadMarkers();
-};
-
-window.refreshMarkers = async function() {
-    await loadMarkers();
-};
-
-window.resetMarkers = async function() {
-    const confirmed = confirm('Delete ALL markers? This cannot be undone.');
-    if (!confirmed) return;
-    await remove(ref(database, 'markers/' + currentUser.uid));
-    clearMapMarkers();
-};
-
-function clearMapMarkers() {
-    markers.forEach(marker => map.removeLayer(marker));
-    markers = [];
-}
-
-window.toggleTutorial = function() {
-    document.getElementById('tutorialSidebar').classList.toggle('hidden');
-};
 
 </script>
 </body>
