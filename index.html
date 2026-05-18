@@ -28,18 +28,18 @@ body::after { content:''; position:fixed; inset:0; background:repeating-linear-g
 .screen { position:fixed; inset:0; z-index:5000; display:flex; align-items:center; justify-content:center; background:radial-gradient(ellipse at 50% 40%,#0d1f2d 0%,#080c10 70%); }
 .screen::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 20% 80%,rgba(255,45,120,0.12) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(0,245,255,0.10) 0%,transparent 50%); pointer-events:none; }
 
-.card { background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:40px 36px; width:90%; max-width:420px; position:relative; backdrop-filter:blur(20px); box-shadow:0 0 40px rgba(0,245,255,0.06),inset 0 1px 0 rgba(255,255,255,0.05); }
-.card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--neon-pink),var(--neon-cyan)); }
+.card { background:var(--panel); border:1px solid var(--border); border-radius:4px; padding:32px 28px; width:90%; max-width:460px; position:relative; backdrop-filter:blur(20px); box-shadow:0 0 40px rgba(0,245,255,0.06),inset 0 1px 0 rgba(255,255,255,0.05); max-height:92vh; overflow-y:auto; }
+.card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; background:linear-gradient(90deg,var(--neon-pink),var(--neon-cyan)); border-radius:4px 4px 0 0; }
 
 .logo { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:4px; color:var(--neon-cyan); text-align:center; margin-bottom:8px; opacity:.7; }
-.card h2 { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:3px; text-align:center; margin-bottom:28px; background:linear-gradient(135deg,#fff 30%,var(--neon-cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.card h2 { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:3px; text-align:center; margin-bottom:20px; background:linear-gradient(135deg,#fff 30%,var(--neon-cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
 
 .field-label { font-size:11px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; margin-top:16px; }
 
 input[type="email"], input[type="password"], input[type="text"] { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:3px; padding:12px 14px; color:var(--text); font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:500; outline:none; transition:border-color .2s,box-shadow .2s; }
 input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255,0.08); }
 
-.btn { width:100%; margin-top:20px; padding:13px; border:none; border-radius:3px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:3px; cursor:pointer; transition:all .15s; }
+.btn { width:100%; margin-top:16px; padding:13px; border:none; border-radius:3px; font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:3px; cursor:pointer; transition:all .15s; }
 .btn-primary { background:linear-gradient(135deg,var(--neon-pink),#c4006a); color:#fff; box-shadow:0 4px 20px rgba(255,45,120,0.3); }
 .btn-primary:hover { transform:translateY(-1px); box-shadow:0 6px 28px rgba(255,45,120,0.45); }
 .btn-secondary { background:transparent; border:1px solid var(--border); color:var(--neon-cyan); margin-top:10px; }
@@ -48,11 +48,27 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .error-msg { color:var(--neon-pink); font-size:13px; letter-spacing:1px; margin-top:10px; text-align:center; display:none; }
 .success-msg { color:var(--neon-cyan); font-size:13px; letter-spacing:1px; margin-top:10px; text-align:center; display:none; }
 
+/* YOUR GROUPS */
+.your-groups-section { margin-bottom:4px; }
+.your-groups-list { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+.group-row { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:3px; padding:9px 10px; }
+.group-row-info { flex:1; min-width:0; }
+.group-row-name { font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.group-row-code { font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:2px; color:var(--neon-cyan); opacity:.7; }
+.group-row-btns { display:flex; gap:5px; flex-shrink:0; }
+.gr-btn { padding:5px 10px; border-radius:2px; font-family:'Bebas Neue',sans-serif; font-size:12px; letter-spacing:1px; cursor:pointer; border:1px solid transparent; transition:all .15s; }
+.gr-btn-enter { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.3); color:var(--neon-cyan); }
+.gr-btn-enter:hover { background:rgba(0,245,255,0.22); }
+.gr-btn-del { background:rgba(255,45,120,0.08); border-color:rgba(255,45,120,0.2); color:var(--neon-pink); }
+.gr-btn-del:hover { background:rgba(255,45,120,0.2); }
+.create-limit-msg { font-size:12px; color:var(--muted); text-align:center; margin-top:8px; letter-spacing:.5px; }
+.section-divider { border:none; border-top:1px solid var(--border); margin:14px 0 8px; }
+
 /* GROUP SCREEN */
 .group-options { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
-.group-option { border:1px solid var(--border); border-radius:3px; padding:20px 14px; cursor:pointer; text-align:center; transition:all .2s; background:rgba(255,255,255,0.02); }
+.group-option { border:1px solid var(--border); border-radius:3px; padding:18px 14px; cursor:pointer; text-align:center; transition:all .2s; background:rgba(255,255,255,0.02); }
 .group-option:hover, .group-option.active { border-color:var(--neon-cyan); background:rgba(0,245,255,0.05); }
-.opt-icon { font-size:28px; display:block; margin-bottom:6px; }
+.opt-icon { font-size:26px; display:block; margin-bottom:6px; }
 .opt-label { font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:2px; color:var(--neon-cyan); }
 .opt-desc { font-size:12px; color:var(--muted); margin-top:4px; }
 
@@ -63,7 +79,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .code-hint { font-size:12px; color:var(--muted); margin-top:8px; }
 
 /* REJOIN BANNER */
-#rejoinBanner { background:rgba(0,245,255,0.06); border:1px solid var(--neon-cyan); border-radius:3px; padding:14px; margin-bottom:16px; display:none; }
+#rejoinBanner { background:rgba(0,245,255,0.06); border:1px solid var(--neon-cyan); border-radius:3px; padding:14px; margin-bottom:14px; display:none; }
 #rejoinBanner p { font-size:13px; color:var(--muted); margin-bottom:8px; letter-spacing:.5px; }
 #rejoinBanner strong { color:var(--neon-cyan); font-family:'Bebas Neue',sans-serif; font-size:16px; letter-spacing:2px; }
 .rejoin-btns { display:flex; gap:8px; margin-top:10px; }
@@ -74,6 +90,13 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 /* WAIT SCREEN */
 .wait-spinner { width:10px; height:10px; border-radius:50%; background:var(--neon-cyan); box-shadow:0 0 8px var(--neon-cyan); animation:pulse 2s infinite; margin:16px auto 0; }
 .wait-sub { color:var(--muted); font-size:14px; letter-spacing:1px; margin-top:12px; }
+
+/* HOST TRANSFER MODAL */
+#transferModal { z-index:6000; }
+.transfer-member { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--border); border-radius:3px; cursor:pointer; background:rgba(255,255,255,0.02); transition:all .15s; margin-bottom:6px; }
+.transfer-member:hover { border-color:var(--neon-cyan); background:rgba(0,245,255,0.06); }
+.transfer-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.transfer-name { font-size:14px; font-weight:600; }
 
 /* HUD */
 #hud { position:fixed; top:0;left:0;right:0; z-index:2000; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; background:linear-gradient(180deg,rgba(8,12,16,0.95) 0%,transparent 100%); pointer-events:none; }
@@ -99,7 +122,6 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .cat-btn:hover { background:rgba(0,245,255,0.1); border-color:rgba(0,245,255,0.4); }
 .cat-btn.selected { border-color:#fff; background:rgba(255,255,255,0.12); transform:scale(1.15); }
 
-/* emoji marker — no background, just drop shadow */
 .emoji-marker { font-size:24px; line-height:1; filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9)) drop-shadow(0 0 2px rgba(0,0,0,0.7)); display:inline-block; }
 
 .panel-btn { width:100%; margin-top:8px; padding:10px; border:1px solid var(--border); border-radius:3px; background:rgba(255,255,255,0.03); color:var(--text); font-family:'Bebas Neue',sans-serif; font-size:14px; letter-spacing:2px; cursor:pointer; transition:all .15s; }
@@ -122,7 +144,6 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .member-kick { margin-left:auto; font-size:11px; color:var(--neon-pink); cursor:pointer; opacity:0; transition:opacity .15s; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; }
 .member-item:hover .member-kick { opacity:1; }
 
-/* approval row buttons */
 .approval-btns { display:flex; gap:4px; margin-left:auto; }
 .abtn { padding:3px 7px; border-radius:2px; font-family:'Bebas Neue',sans-serif; font-size:11px; letter-spacing:1px; cursor:pointer; border:none; transition:all .15s; }
 .abtn-approve { background:rgba(0,245,255,0.15); color:var(--neon-cyan); }
@@ -160,7 +181,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 
 <!-- LOGIN -->
 <div class="screen" id="loginScreen">
-  <div class="card">
+  <div class="card" style="max-width:420px">
     <div class="logo">GOAT'S · SQUAD MAP</div>
     <h2>Sign In</h2>
     <div class="field-label">Email</div>
@@ -174,7 +195,7 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 
 <!-- GROUP -->
 <div class="screen hidden" id="groupScreen">
-  <div class="card" style="max-width:460px">
+  <div class="card">
     <div class="logo">GOAT'S · SQUAD MAP</div>
     <h2>Your Squad</h2>
 
@@ -189,7 +210,16 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
     </div>
 
     <div id="groupMainUI">
-      <div class="group-options">
+
+      <!-- Your created groups -->
+      <div class="your-groups-section hidden" id="createdGroupsSection">
+        <div class="field-label" style="margin-top:0">Your Groups</div>
+        <div class="your-groups-list" id="createdGroupsList"></div>
+        <p class="create-limit-msg hidden" id="createLimitMsg">Delete a group to create a new one</p>
+        <hr class="section-divider" />
+      </div>
+
+      <div class="group-options" id="groupOptionsGrid">
         <div class="group-option" id="optCreate" onclick="selectGroupOpt('create')">
           <span class="opt-icon">⚡</span>
           <div class="opt-label">Create</div>
@@ -241,6 +271,17 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
   </div>
 </div>
 
+<!-- HOST TRANSFER MODAL -->
+<div class="screen hidden" id="transferModal">
+  <div class="card" style="max-width:380px">
+    <div class="logo">SQUAD MAP</div>
+    <h2>Transfer Host</h2>
+    <p style="font-size:13px;color:var(--muted);letter-spacing:.5px;margin-bottom:16px;text-align:center">Pick a member to become the new host:</p>
+    <div id="transferList"></div>
+    <button class="btn btn-secondary" onclick="cancelTransfer()">Cancel</button>
+  </div>
+</div>
+
 <!-- MAP -->
 <div id="map"></div>
 
@@ -273,12 +314,10 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
     <h3>Squad</h3>
     <div class="member-list" id="memberList"></div>
   </div>
-  <!-- Owner-only: Pending requests -->
   <div class="panel-block hidden" id="pendingBlock">
     <h3>Pending</h3>
     <div class="member-list" id="pendingList"></div>
   </div>
-  <!-- Owner-only: Banned users -->
   <div class="panel-block hidden" id="bannedBlock">
     <h3>Banned</h3>
     <div class="member-list" id="bannedList"></div>
@@ -312,8 +351,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 
-// ── CONSTANTS ──
 const MARKER_LIMIT = 20;
+const GROUP_LIMIT = 3;
 
 // ── STATE ──
 let currentUser = null;
@@ -323,6 +362,7 @@ let leafletMarkers = {};
 let placingMarker = false;
 let selectedCategory = '📍';
 let groupListener = null;
+let membersUnsub = null;
 let pendingUnsub = null;
 let bannedUnsub = null;
 let waitUnsub = null;
@@ -330,7 +370,6 @@ let waitGroupId = null;
 let myMarkerCount = 0;
 let isOwner = false;
 
-// ── CATEGORIES ──
 const CATEGORIES = ['📍','💀','⭐','🏠','🚗','💊','🔫','💣','🚁'];
 
 const USER_COLORS = ['#00f5ff','#ff2d78','#f7ff00','#39ff14','#ff8c00','#bf00ff'];
@@ -361,11 +400,9 @@ function timeAgo(ts) {
 function saveSession(group) {
   localStorage.setItem('squadmap_group', JSON.stringify(group));
 }
-
 function loadSession() {
   try { return JSON.parse(localStorage.getItem('squadmap_group')); } catch { return null; }
 }
-
 function clearSession() {
   localStorage.removeItem('squadmap_group');
 }
@@ -405,16 +442,104 @@ document.getElementById('loginPassword').addEventListener('keydown', e => {
 });
 
 // ── GROUP SCREEN ──
-function showGroupScreen() {
+async function showGroupScreen() {
   document.getElementById('groupScreen').classList.remove('hidden');
+
   const saved = loadSession();
   if (saved) {
     document.getElementById('rejoinGroupName').textContent = `${saved.name}  ·  ${saved.code}`;
     document.getElementById('rejoinBanner').style.display = 'block';
     document.getElementById('groupMainUI').classList.add('hidden');
+  } else {
+    document.getElementById('groupMainUI').classList.remove('hidden');
+  }
+
+  await loadCreatedGroups();
+}
+
+async function loadCreatedGroups() {
+  const snap = await get(ref(db, `users/${currentUser.uid}/createdGroups`));
+  const section = document.getElementById('createdGroupsSection');
+  const list = document.getElementById('createdGroupsList');
+  const limitMsg = document.getElementById('createLimitMsg');
+  const optCreate = document.getElementById('optCreate');
+
+  list.innerHTML = '';
+
+  if (!snap.exists() || snap.size === 0) {
+    section.classList.add('hidden');
+    optCreate.classList.remove('hidden');
+    limitMsg.classList.add('hidden');
+    return;
+  }
+
+  section.classList.remove('hidden');
+  const count = snap.size;
+
+  snap.forEach(child => {
+    const g = child.val();
+    const gid = child.key;
+    const div = document.createElement('div');
+    div.className = 'group-row';
+    div.innerHTML = `
+      <div class="group-row-info">
+        <div class="group-row-name">${g.name}</div>
+        <div class="group-row-code">${g.code}</div>
+      </div>
+      <div class="group-row-btns">
+        <button class="gr-btn gr-btn-enter" onclick="window.enterCreatedGroup('${gid}')">Enter</button>
+        <button class="gr-btn gr-btn-del" onclick="window.deleteCreatedGroup('${gid}','${g.name}')">✕</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+
+  if (count >= GROUP_LIMIT) {
+    optCreate.classList.add('hidden');
+    limitMsg.classList.remove('hidden');
+  } else {
+    optCreate.classList.remove('hidden');
+    limitMsg.classList.add('hidden');
   }
 }
 
+// ── ENTER CREATED GROUP ──
+window.enterCreatedGroup = async function(groupId) {
+  const snap = await get(ref(db, `groups/${groupId}`));
+  if (!snap.exists()) {
+    await remove(ref(db, `users/${currentUser.uid}/createdGroups/${groupId}`));
+    toast('That group no longer exists');
+    await loadCreatedGroups();
+    return;
+  }
+
+  const data = snap.val();
+  // Re-derive ownerId fresh from Firebase
+  currentGroup = { id: groupId, name: data.name, code: data.code, ownerId: data.createdBy };
+
+  await set(ref(db, `groups/${groupId}/members/${currentUser.uid}`), {
+    displayName: currentUser.email.split('@')[0],
+    joinedAt: Date.now()
+  });
+
+  saveSession(currentGroup);
+  document.getElementById('groupScreen').classList.add('hidden');
+  enterMap();
+};
+
+// ── DELETE CREATED GROUP ──
+window.deleteCreatedGroup = async function(groupId, name) {
+  if (!confirm(`Delete "${name}"? This removes all members and markers permanently.`)) return;
+
+  await remove(ref(db, `groups/${groupId}`));
+  await remove(ref(db, `groupMarkers/${groupId}`));
+  await remove(ref(db, `users/${currentUser.uid}/createdGroups/${groupId}`));
+
+  toast(`${name} deleted`);
+  await loadCreatedGroups();
+};
+
+// ── REJOIN ──
 window.doRejoin = async function() {
   const saved = loadSession();
   if (!saved) return;
@@ -439,6 +564,7 @@ window.doRejoin = async function() {
     return;
   }
 
+  // Re-derive ownerId fresh from Firebase, never from cached session
   currentGroup = { id: saved.id, name: data.name, code: data.code, ownerId: data.createdBy };
 
   await set(ref(db, `groups/${saved.id}/members/${currentUser.uid}`), {
@@ -447,6 +573,7 @@ window.doRejoin = async function() {
   });
 
   saveSession(currentGroup);
+  document.getElementById('groupScreen').classList.add('hidden');
   enterMap();
 };
 
@@ -478,6 +605,13 @@ window.createGroup = async function() {
   const name = document.getElementById('groupNameInput').value.trim();
   if (!name) { toast('Enter a group name'); return; }
 
+  // Server-side limit check
+  const existingSnap = await get(ref(db, `users/${currentUser.uid}/createdGroups`));
+  if (existingSnap.exists() && existingSnap.size >= GROUP_LIMIT) {
+    toast('Group limit reached — delete one first');
+    return;
+  }
+
   const code = generateCode();
   const groupRef = push(ref(db, 'groups'));
 
@@ -491,6 +625,13 @@ window.createGroup = async function() {
   await set(ref(db, `groups/${groupRef.key}/members/${currentUser.uid}`), {
     displayName: currentUser.email.split('@')[0],
     joinedAt: Date.now()
+  });
+
+  // Save reference under this user's created groups
+  await set(ref(db, `users/${currentUser.uid}/createdGroups/${groupRef.key}`), {
+    name,
+    code,
+    createdAt: Date.now()
   });
 
   currentGroup = { id: groupRef.key, name, code, ownerId: currentUser.uid };
@@ -522,7 +663,6 @@ window.joinGroup = async function() {
   const bannedSnap = await get(ref(db, `groups/${found.id}/banned/${currentUser.uid}`));
   if (bannedSnap.exists()) { toast('You are banned from this group'); return; }
 
-  // Write to pending instead of directly to members
   const displayName = currentUser.email.split('@')[0];
   await set(ref(db, `groups/${found.id}/pending/${currentUser.uid}`), {
     uid: currentUser.uid,
@@ -533,11 +673,9 @@ window.joinGroup = async function() {
   const pendingGroupData = { id: found.id, name: found.name, code: found.code, ownerId: found.createdBy };
   waitGroupId = found.id;
 
-  // Show wait screen
   document.getElementById('groupScreen').classList.add('hidden');
   document.getElementById('waitScreen').classList.remove('hidden');
 
-  // Watch pending/{uid} — when it disappears, either approved or denied
   waitUnsub = onValue(ref(db, `groups/${found.id}/pending/${currentUser.uid}`), async snap => {
     if (!snap.exists()) {
       if (waitUnsub) { waitUnsub(); waitUnsub = null; }
@@ -583,8 +721,8 @@ window.copyCode = function() {
 
 // ── ENTER MAP ──
 window.enterMap = function() {
+  // Always derive isOwner live from the freshly-loaded currentGroup.ownerId
   isOwner = currentGroup.ownerId === currentUser.uid;
-  document.getElementById('groupScreen').classList.add('hidden');
   document.getElementById('hud').classList.remove('hidden');
   document.getElementById('panel').classList.remove('hidden');
   document.getElementById('hudGroupName').textContent = currentGroup.name;
@@ -595,24 +733,89 @@ window.enterMap = function() {
 
 // ── LEAVE GROUP ──
 window.leaveGroup = async function() {
-  if (!confirm('Leave this group? You can rejoin with the code.')) return;
+  if (!isOwner) {
+    if (!confirm('Leave this group?')) return;
+    await remove(ref(db, `groups/${currentGroup.id}/members/${currentUser.uid}`));
+    clearSession();
+    resetMapUI();
+    toast('Left group');
+    return;
+  }
 
+  // Owner: check for other members
+  const membersSnap = await get(ref(db, `groups/${currentGroup.id}/members`));
+  const others = [];
+  if (membersSnap.exists()) {
+    membersSnap.forEach(child => {
+      if (child.key !== currentUser.uid) others.push({ uid: child.key, ...child.val() });
+    });
+  }
+
+  if (others.length === 0) {
+    if (!confirm('You are the only member. Leaving will delete this group entirely.')) return;
+    await deleteGroupFull(currentGroup.id);
+    clearSession();
+    resetMapUI();
+    toast('Group deleted');
+    return;
+  }
+
+  // Show transfer modal
+  showTransferModal(others);
+};
+
+function showTransferModal(members) {
+  const list = document.getElementById('transferList');
+  list.innerHTML = '';
+  for (const m of members) {
+    const div = document.createElement('div');
+    div.className = 'transfer-member';
+    div.innerHTML = `
+      <div class="transfer-dot" style="background:${getUserColor(m.uid)};box-shadow:0 0 8px ${getUserColor(m.uid)}"></div>
+      <span class="transfer-name">${m.displayName}</span>
+    `;
+    div.onclick = () => window.confirmTransfer(m.uid, m.displayName);
+    list.appendChild(div);
+  }
+  document.getElementById('transferModal').classList.remove('hidden');
+}
+
+window.confirmTransfer = async function(newOwnerUid, newOwnerName) {
+  document.getElementById('transferModal').classList.add('hidden');
+
+  // Transfer ownership in Firebase
+  await set(ref(db, `groups/${currentGroup.id}/createdBy`), newOwnerUid);
+
+  // Remove old host from members
   await remove(ref(db, `groups/${currentGroup.id}/members/${currentUser.uid}`));
-  clearSession();
 
+  clearSession();
+  resetMapUI();
+  toast(`${newOwnerName} is now the host`);
+};
+
+window.cancelTransfer = function() {
+  document.getElementById('transferModal').classList.add('hidden');
+};
+
+async function deleteGroupFull(groupId) {
+  await remove(ref(db, `groups/${groupId}`));
+  await remove(ref(db, `groupMarkers/${groupId}`));
+  // Remove from user's created groups list
+  await remove(ref(db, `users/${currentUser.uid}/createdGroups/${groupId}`));
+}
+
+function resetMapUI() {
   // Stop all listeners
   if (groupListener) { off(ref(db, `groupMarkers/${currentGroup.id}`), 'value', groupListener); groupListener = null; }
+  if (membersUnsub) { membersUnsub(); membersUnsub = null; }
   if (pendingUnsub) { pendingUnsub(); pendingUnsub = null; }
   if (bannedUnsub) { bannedUnsub(); bannedUnsub = null; }
 
-  // Reset UI
   document.getElementById('hud').classList.add('hidden');
   document.getElementById('panel').classList.add('hidden');
   document.getElementById('pendingBlock').classList.add('hidden');
   document.getElementById('bannedBlock').classList.add('hidden');
-  document.getElementById('groupScreen').classList.remove('hidden');
-  document.getElementById('rejoinBanner').style.display = 'none';
-  document.getElementById('groupMainUI').classList.remove('hidden');
   document.getElementById('groupNameInput').value = '';
   document.getElementById('groupCodeInput').value = '';
   document.getElementById('createFlow').classList.add('hidden');
@@ -620,23 +823,27 @@ window.leaveGroup = async function() {
   document.getElementById('codeDisplay').classList.add('hidden');
   document.getElementById('optCreate').classList.remove('active');
   document.getElementById('optJoin').classList.remove('active');
+  document.getElementById('rejoinBanner').style.display = 'none';
 
   clearMapMarkers();
   currentGroup = null;
   myMarkerCount = 0;
   isOwner = false;
-  toast('Left group');
-};
+
+  showGroupScreen();
+}
 
 // ── MAP ──
 function initMap() {
-  map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, zoomControl: false });
-  L.control.zoom({ position: 'bottomleft' }).addTo(map);
-  const bounds = [[0,0],[1024,1024]];
-  L.imageOverlay('https://i.imgur.com/6pdBDOZ.jpeg', bounds).addTo(map);
-  map.fitBounds(bounds);
+  if (!map) {
+    map = L.map('map', { crs: L.CRS.Simple, minZoom: -5, zoomControl: false });
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+    const bounds = [[0,0],[1024,1024]];
+    L.imageOverlay('https://i.imgur.com/6pdBDOZ.jpeg', bounds).addTo(map);
+    map.fitBounds(bounds);
+  }
   listenToMarkers();
-  loadMembers();
+  listenToMembers();
   if (isOwner) {
     listenToPending();
     listenToBanned();
@@ -658,6 +865,34 @@ function listenToMarkers() {
       if (data.placedBy === currentUser.uid) myMarkerCount++;
     });
     updateLimitBar();
+  });
+}
+
+// ── REAL-TIME MEMBERS ──
+function listenToMembers() {
+  if (membersUnsub) { membersUnsub(); membersUnsub = null; }
+  const list = document.getElementById('memberList');
+
+  membersUnsub = onValue(ref(db, `groups/${currentGroup.id}/members`), snapshot => {
+    list.innerHTML = '';
+    if (!snapshot.exists()) return;
+
+    snapshot.forEach(child => {
+      const data = child.val();
+      const uid = child.key;
+      const isYou = uid === currentUser.uid;
+      const isGroupOwner = uid === currentGroup.ownerId;
+
+      const div = document.createElement('div');
+      div.className = 'member-item';
+      div.innerHTML = `
+        <div class="member-dot" style="background:${getUserColor(uid)};box-shadow:0 0 6px ${getUserColor(uid)}"></div>
+        <span style="font-size:13px">${data.displayName}${isGroupOwner ? ' 👑' : ''}</span>
+        ${isYou ? '<span style="font-size:11px;color:var(--muted);margin-left:auto">you</span>' : ''}
+        ${isOwner && !isYou ? `<span class="member-kick" onclick="window.kickMember('${uid}','${data.displayName}')">KICK</span>` : ''}
+      `;
+      list.appendChild(div);
+    });
   });
 }
 
@@ -740,7 +975,7 @@ window.deleteMarker = async function(key) {
   toast('Marker removed');
 };
 
-// ── KICK MEMBER (owner only) ──
+// ── KICK MEMBER ──
 window.kickMember = async function(uid, displayName) {
   if (!isOwner) return;
   if (!confirm(`Remove ${displayName} from the group?`)) return;
@@ -761,7 +996,7 @@ window.kickMember = async function(uid, displayName) {
   toast(`${displayName} removed and banned`);
 };
 
-// ── PENDING LISTENER (owner only) ──
+// ── PENDING LISTENER ──
 function listenToPending() {
   if (pendingUnsub) { pendingUnsub(); pendingUnsub = null; }
   const pendingBlock = document.getElementById('pendingBlock');
@@ -769,10 +1004,7 @@ function listenToPending() {
 
   pendingUnsub = onValue(ref(db, `groups/${currentGroup.id}/pending`), snapshot => {
     pendingList.innerHTML = '';
-    if (!snapshot.exists() || snapshot.size === 0) {
-      pendingBlock.classList.add('hidden');
-      return;
-    }
+    if (!snapshot.exists() || snapshot.size === 0) { pendingBlock.classList.add('hidden'); return; }
     pendingBlock.classList.remove('hidden');
     snapshot.forEach(child => {
       const data = child.val();
@@ -793,7 +1025,7 @@ function listenToPending() {
   });
 }
 
-// ── BANNED LISTENER (owner only) ──
+// ── BANNED LISTENER ──
 function listenToBanned() {
   if (bannedUnsub) { bannedUnsub(); bannedUnsub = null; }
   const bannedBlock = document.getElementById('bannedBlock');
@@ -801,10 +1033,7 @@ function listenToBanned() {
 
   bannedUnsub = onValue(ref(db, `groups/${currentGroup.id}/banned`), snapshot => {
     bannedList.innerHTML = '';
-    if (!snapshot.exists() || snapshot.size === 0) {
-      bannedBlock.classList.add('hidden');
-      return;
-    }
+    if (!snapshot.exists() || snapshot.size === 0) { bannedBlock.classList.add('hidden'); return; }
     bannedBlock.classList.remove('hidden');
     snapshot.forEach(child => {
       const data = child.val();
@@ -821,29 +1050,22 @@ function listenToBanned() {
   });
 }
 
-// ── APPROVE ──
 window.approveMember = async function(uid, displayName) {
   await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
-  await set(ref(db, `groups/${currentGroup.id}/members/${uid}`), {
-    displayName,
-    joinedAt: Date.now()
-  });
+  await set(ref(db, `groups/${currentGroup.id}/members/${uid}`), { displayName, joinedAt: Date.now() });
   toast(`${displayName} approved`);
 };
 
-// ── DENY ──
 window.denyMember = async function(uid) {
   await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
 };
 
-// ── BAN FROM PENDING ──
 window.banFromPending = async function(uid, displayName) {
   await remove(ref(db, `groups/${currentGroup.id}/pending/${uid}`));
   await set(ref(db, `groups/${currentGroup.id}/banned/${uid}`), { uid, displayName });
   toast(`${displayName} banned`);
 };
 
-// ── UNBAN ──
 window.unbanMember = async function(uid, displayName) {
   if (!confirm(`Unban ${displayName}?`)) return;
   await remove(ref(db, `groups/${currentGroup.id}/banned/${uid}`));
@@ -868,31 +1090,6 @@ window.resetMyMarkers = async function() {
   await Promise.all(deletes);
   toast('Your markers cleared');
 };
-
-// ── LOAD MEMBERS ──
-async function loadMembers() {
-  const snap = await get(ref(db, `groups/${currentGroup.id}/members`));
-  const list = document.getElementById('memberList');
-  list.innerHTML = '';
-  if (!snap.exists()) return;
-
-  snap.forEach(child => {
-    const data = child.val();
-    const uid = child.key;
-    const isYou = uid === currentUser.uid;
-    const isGroupOwner = uid === currentGroup.ownerId;
-
-    const div = document.createElement('div');
-    div.className = 'member-item';
-    div.innerHTML = `
-      <div class="member-dot" style="background:${getUserColor(uid)};box-shadow:0 0 6px ${getUserColor(uid)}"></div>
-      <span style="font-size:13px">${data.displayName}${isGroupOwner ? ' 👑' : ''}</span>
-      ${isYou ? '<span style="font-size:11px;color:var(--muted);margin-left:auto">you</span>' : ''}
-      ${isOwner && !isYou ? `<span class="member-kick" onclick="window.kickMember('${uid}','${data.displayName}')">KICK</span>` : ''}
-    `;
-    list.appendChild(div);
-  });
-}
 
 </script>
 </body>
