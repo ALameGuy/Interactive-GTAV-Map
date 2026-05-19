@@ -150,8 +150,8 @@ input:focus { border-color:var(--neon-cyan); box-shadow:0 0 0 3px rgba(0,245,255
 .abtn-ban { background:rgba(255,45,120,0.12); color:var(--neon-pink); }
 .abtn-ban:hover { background:rgba(255,45,120,0.25); }
 
-#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(60px); background:var(--panel); border:1px solid var(--border); border-radius:3px; padding:10px 20px; font-size:13px; letter-spacing:1px; z-index:9000; transition:transform .3s; backdrop-filter:blur(16px); white-space:nowrap; }
-#toast.show { transform:translateX(-50%) translateY(0); }
+#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(60px); opacity:0; pointer-events:none; background:var(--panel); border:1px solid var(--border); border-radius:3px; padding:10px 20px; font-size:13px; letter-spacing:1px; z-index:9000; transition:transform .3s, opacity .3s; backdrop-filter:blur(16px); white-space:nowrap; }
+#toast.show { transform:translateX(-50%) translateY(0); opacity:1; pointer-events:auto; }
 
 .leaflet-popup-content-wrapper { background:var(--panel) !important; border:1px solid var(--border) !important; border-radius:4px !important; color:var(--text) !important; font-family:'Rajdhani',sans-serif !important; backdrop-filter:blur(16px); box-shadow:0 8px 32px rgba(0,0,0,0.6) !important; }
 .leaflet-popup-tip { background:var(--panel) !important; }
