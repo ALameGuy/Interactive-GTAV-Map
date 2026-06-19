@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Connect 4</title>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#121a33; --board:#1b3a8a; --hole:#0b1020;
+    --p1:#ff4d5e; --p1b:#ff8a96; --p2:#ffd23f; --p2b:#ffe487;
+    --txt:#e8ecf8; --muted:#8c98c0; --accent:#5bd6c0; --line:#243156;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%,#1a2547 0%,var(--bg) 60%);
+    color:var(--txt); display:flex; flex-direction:column; align-items:center;
+    min-height:100%; padding:18px; -webkit-tap-highlight-color:transparent;
+  }
+  h1{font-size:24px;letter-spacing:.5px;margin:6px 0 2px;font-weight:800}
+  h1 .b{color:var(--p2)} h1 .r{color:var(--p1)}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .card{background:linear-gradient(180deg,var(--bg2),#0f1730);border:1px solid var(--line);
+        border-radius:18px;padding:22px;width:100%;max-width:430px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+  .hidden{display:none!important}
+  input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);
+        background:#0c1428;color:var(--txt);font-size:15px;outline:none;margin-bottom:12px}
+  input:focus{border-color:var(--accent)}
+  button{cursor:pointer;border:none;border-radius:12px;font-size:15px;font-weight:700;
+        padding:13px 16px;width:100%;color:#06101f;background:var(--accent);transition:.15s;margin-bottom:10px}
+  button:hover{filter:brightness(1.08)} button:active{transform:translateY(1px)}
+  button.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+  button.sm{width:auto;padding:8px 12px;font-size:13px;margin:0}
+  .or{color:var(--muted);text-align:center;font-size:12px;margin:6px 0 12px}
+
+  /* ===== Game ===== */
+  #game{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:520px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px}
+  .players{display:flex;gap:8px;align-items:center}
+  .pill{display:flex;align-items:center;gap:8px;background:#0f1730;border:1px solid var(--line);
+        padding:7px 12px;border-radius:999px;font-size:13px;font-weight:600}
+  .dot{width:14px;height:14px;border-radius:50%}
+  .dot.p1{background:var(--p1)} .dot.p2{background:var(--p2)}
+  .pill.active{border-color:var(--accent);box-shadow:0 0 0 2px rgba(91,214,192,.25)}
+  .status{font-size:14px;color:var(--muted);min-height:20px;text-align:center}
+  .status b{color:var(--txt)}
+
+  .boardwrap{position:relative;width:100%;max-width:480px}
+  .board{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;background:var(--board);
+        padding:12px;border-radius:18px;box-shadow:inset 0 4px 14px rgba(0,0,0,.35),0 16px 40px rgba(20,40,120,.35)}
+  .cell{aspect-ratio:1/1;background:var(--hole);border-radius:50%;position:relative;overflow:hidden;
+        box-shadow:inset 0 3px 8px rgba(0,0,0,.55)}
+  .disc{position:absolute;inset:6%;border-radius:50%;transform:translateY(-700%);transition:transform .35s cubic-bezier(.34,1.2,.7,1)}
+  .disc.show{transform:translateY(0)}
+  .disc.p1{background:radial-gradient(circle at 35% 30%,var(--p1b),var(--p1))}
+  .disc.p2{background:radial-gradient(circle at 35% 30%,var(--p2b),var(--p2))}
+  .disc.win{animation:pulse .7s ease-in-out infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 4px rgba(255,255,255,.65)}}
+  .cols{position:absolute;inset:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .colhit{cursor:pointer;border-radius:12px}
+  .colhit:hover{background:rgba(255,255,255,.05)}
+
+  /* ===== Coach overlay (host-only, secret) ===== */
+  .coach-arrow{position:absolute;top:-30px;width:0;height:0;border-left:13px solid transparent;
+        border-right:13px solid transparent;border-top:18px solid var(--accent);
+        transform:translateX(-50%);filter:drop-shadow(0 0 8px var(--accent));
+        transition:left .2s;display:none;animation:bob 1s ease-in-out infinite}
+  @keyframes bob{50%{top:-22px}}
+  .coach-panel{display:none;width:100%;max-width:480px;background:linear-gradient(90deg,#06231f,#0a2f29);
+        border:1px solid var(--accent);border-radius:14px;padding:12px 14px;
+        align-items:center;justify-content:space-between;gap:10px;box-shadow:0 0 24px rgba(91,214,192,.25)}
+  .coach-panel .big{font-size:20px;font-weight:800;color:var(--accent)}
+  .coach-panel .lab{font-size:12px;color:#9fe7da}
+  .coach-meter{height:8px;border-radius:6px;background:#06231f;overflow:hidden;flex:1;max-width:140px}
+  .coach-meter > i{display:block;height:100%;background:linear-gradient(90deg,#ffd23f,var(--accent));width:0;transition:width .3s}
+  .footer{color:#2a3658;font-size:11px;margin-top:18px;text-align:center;user-select:none}
+  .footer .dotv{cursor:default}
+  .row{display:flex;gap:10px}.row>*{flex:1}
+  .code{font-family:ui-monospace,monospace;font-weight:800;letter-spacing:2px;color:var(--p2)}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#0f1730;
+        border:1px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;
+        font-size:13px;opacity:0;transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+  <h1>Connect <span class="r">4</span></h1>
+  <div class="sub" id="tagline">Challenge a friend — best of the board wins.</div>
+
+  <!-- ===================== LOBBY ===================== -->
+  <div class="card" id="lobby">
+    <input id="nameInput" placeholder="Your name" maxlength="16" />
+    <button id="createBtn">Create a Game</button>
+    <div class="or">— or join with a code —</div>
+    <div class="row">
+      <input id="joinCode" placeholder="CODE" maxlength="6" style="text-transform:uppercase" />
+      <button id="joinBtn" class="sm" style="width:100%">Join</button>
+    </div>
+  </div>
+
+  <!-- ===================== GAME ===================== -->
+  <div id="game" class="hidden">
+    <div class="topbar">
+      <div class="players">
+        <div class="pill" id="pill1"><span class="dot p1"></span><span id="name1">P1</span></div>
+        <div class="pill" id="pill2"><span class="dot p2"></span><span id="name2">P2</span></div>
+      </div>
+      <button class="ghost sm" id="shareBtn" style="width:auto">Share link</button>
+    </div>
+    <div class="status" id="status">Setting up…</div>
+
+    <!-- Coach panel (only ever shown to the unlocked device) -->
+    <div class="coach-panel" id="coachPanel">
+      <div>
+        <div class="big">Play column <span id="coachCol">–</span></div>
+        <div class="lab" id="coachLabel">analyzing…</div>
+      </div>
+      <div class="coach-meter"><i id="coachBar"></i></div>
+    </div>
+
+    <div class="boardwrap">
+      <div class="coach-arrow" id="coachArrow"></div>
+      <div class="board" id="board"></div>
+      <div class="cols" id="cols"></div>
+    </div>
+
+    <div class="row" id="endRow" style="display:none">
+      <button id="rematchBtn">Rematch</button>
+      <button id="leaveBtn" class="ghost">Leave</button>
+    </div>
+  </div>
+
+  <div class="footer" id="footer">v1.0 <span class="dotv" id="secretDot">·</span></div>
+  <div class="toast" id="toast"></div>
+
+<!-- Firebase (reuse your existing project from the Squad Map) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+/* =========================================================================
+   1) FIREBASE CONFIG  —  paste your Realtime Database project config here.
+      (You can reuse the same project as your Squad Map.)
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: 'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4',
+  authDomain: 'map-v2-6b2e4.firebaseapp.com',
+  databaseURL: 'https://map-v2-6b2e4-default-rtdb.firebaseio.com',
+  projectId: 'map-v2-6b2e4',
+  storageBucket: 'map-v2-6b2e4.appspot.com',
+  messagingSenderId: '216550808002',
+  appId: '1:216550808002:web:3443680b0ebfebbae09e5b'
+};
+
+/* =========================================================================
+   2) COACH SECRET  —  the coach unlocks ONLY when your passphrase matches.
+      Stored as a SHA-256 hash so nobody can read it from "view source".
+      Default passphrase: goat-coach-2026
+      To change it: open dev console and run  coachHash("your new phrase")
+      then paste the printed value below.
+   ========================================================================= */
+const COACH_PASS_SHA256 = "2bca9ed13bcb519f4c2aa0af0615a64890e047452a1dc102617c2f62e2b892ca";
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const ROWS = 6, COLS = 7;
+let db = null;
+try { firebase.initializeApp(firebaseConfig); db = firebase.database(); } catch(e){ console.warn(e); }
+
+let myId = localStorage.getItem('c4id');
+if(!myId){ myId = Math.random().toString(36).slice(2,10); localStorage.setItem('c4id', myId); }
+
+let coachUnlocked = false;
+let coachHidden = false;
+let roomCode = null, roomRef = null, myRole = 0, state = null;
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+window.coachHash = async function(phrase){ const h = await sha256(phrase); console.log('Paste this as COACH_PASS_SHA256:\n'+h); return h; };
+
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+/* ---------- coach unlock (discreet: triple-click the footer dot) ---------- */
+if(localStorage.getItem('c4coach')==='1') coachUnlocked = true;
+let dotClicks=0, dotTimer=null;
+$('secretDot').addEventListener('click', ()=>{
+  dotClicks++; clearTimeout(dotTimer); dotTimer=setTimeout(()=>dotClicks=0,600);
+  if(dotClicks>=3){
+    dotClicks=0;
+    const phrase = prompt('passphrase');
+    if(phrase==null) return;
+    sha256(phrase.trim()).then(h=>{
+      if(h===COACH_PASS_SHA256){ coachUnlocked=true; localStorage.setItem('c4coach','1'); toast('Coach unlocked 🔓'); refreshCoach(); }
+      else toast('nope');
+    });
+  }
+});
+// allow unlocking via private link too: index.html#coach=YOUR_PHRASE
+(function(){
+  const m = location.hash.match(/coach=([^&]+)/);
+  if(m){ sha256(decodeURIComponent(m[1])).then(h=>{ if(h===COACH_PASS_SHA256){coachUnlocked=true;localStorage.setItem('c4coach','1');} history.replaceState(null,'',location.pathname+location.search); }); }
+})();
+
+/* ========================== GAME LOGIC / SYNC ========================== */
+function emptyBoard(){ return Array(ROWS*COLS).fill(0); }
+function idx(r,c){ return r*COLS+c; }
+
+function createRoom(){
+  const name = ($('nameInput').value.trim()||'Player 1').slice(0,16);
+  if(!db){ toast('Add your Firebase config first'); return; }
+  roomCode = Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+  const data = {
+    p1:{id:myId,name}, p2:null,
+    cells: emptyBoard().join(''),
+    turn:1, winner:0, lastCol:-1, moveCount:0,
+    rematch:{}, createdAt:Date.now()
+  };
+  db.ref('c4/'+roomCode).set(data)
+    .then(()=>{ enterRoom(); })
+    .catch(err=>{ console.error(err); toast('DB write blocked — check database rules for "c4"'); });
+}
+
+function joinRoom(code){
+  code = (code||'').toUpperCase().trim();
+  if(!db){ toast('Add your Firebase config first'); return; }
+  if(code.length<4){ toast('Enter a valid code'); return; }
+  const name = ($('nameInput').value.trim()||'Player 2').slice(0,16);
+  const ref = db.ref('c4/'+code);
+  ref.get().then(snap=>{
+    if(!snap.exists()){ toast('Room not found'); return; }
+    const r = snap.val();
+    roomCode = code;
+    // claim a slot
+    if(r.p1 && r.p1.id===myId){ enterRoom(); return; }
+    if(r.p2 && r.p2.id===myId){ enterRoom(); return; }
+    if(!r.p2){ ref.child('p2').set({id:myId,name}).then(enterRoom); }
+    else { toast('Room is full — spectating'); enterRoom(); }
+  });
+}
+
+function enterRoom(){
+  $('lobby').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  roomRef = db.ref('c4/'+roomCode);
+  roomRef.on('value', snap=>{
+    if(!snap.exists()) return;
+    state = snap.val();
+    if(state.p1 && state.p1.id===myId) myRole=1;
+    else if(state.p2 && state.p2.id===myId) myRole=2;
+    else myRole=0; // spectator
+    render();
+  });
+}
+
+function cellsArr(){ return state.cells.split('').map(Number); }
+
+function dropMove(col){
+  if(!state || state.winner) return;
+  if(myRole!==state.turn) return;            // not your turn
+  const cells = cellsArr();
+  // find lowest empty row in column
+  let row=-1;
+  for(let r=ROWS-1;r>=0;r--){ if(cells[idx(r,col)]===0){ row=r; break; } }
+  if(row<0) return;                          // column full
+  cells[idx(row,col)] = myRole;
+  const win = checkWin(cells, myRole) ? myRole : (cells.every(v=>v!==0)?3:0);
+  roomRef.update({
+    cells:cells.join(''),
+    turn: state.turn===1?2:1,
+    lastCol:col, moveCount:(state.moveCount||0)+1,
+    winner:win
+  });
+}
+
+function checkWin(cells, p){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(cells[idx(r,c)]!==p) continue;
+    for(const [dr,dc] of dirs){
+      let k=1, rr=r+dr, cc=c+dc;
+      while(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&cells[idx(rr,cc)]===p){k++;rr+=dr;cc+=dc;}
+      if(k>=4) return true;
+    }
+  }
+  return false;
+}
+function winningCells(cells,p){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    if(cells[idx(r,c)]!==p) continue;
+    for(const [dr,dc] of dirs){
+      const line=[[r,c]]; let rr=r+dr,cc=c+dc;
+      while(rr>=0&&rr<ROWS&&cc>=0&&cc<COLS&&cells[idx(rr,cc)]===p){line.push([rr,cc]);rr+=dr;cc+=dc;}
+      if(line.length>=4) return line.slice(0,4).map(([a,b])=>idx(a,b));
+    }
+  }
+  return [];
+}
+
+/* ============================== RENDER ============================== */
+function buildBoardOnce(){
+  const board=$('board'); board.innerHTML='';
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const cell=document.createElement('div'); cell.className='cell';
+    const disc=document.createElement('div'); disc.className='disc'; disc.dataset.k=idx(r,c);
+    cell.appendChild(disc); board.appendChild(cell);
+  }
+  const cols=$('cols'); cols.innerHTML='';
+  for(let c=0;c<COLS;c++){
+    const h=document.createElement('div'); h.className='colhit'; h.dataset.col=c;
+    h.addEventListener('click',()=>dropMove(c));
+    cols.appendChild(h);
+  }
+}
+let boardBuilt=false;
+function render(){
+  if(!boardBuilt){ buildBoardOnce(); boardBuilt=true; }
+  const cells=cellsArr();
+  const wcells = state.winner && state.winner!==3 ? winningCells(cells,state.winner) : [];
+  document.querySelectorAll('.disc').forEach(d=>{
+    const k=+d.dataset.k, v=cells[k];
+    d.className='disc'+(v?` p${v} show`:'')+(wcells.includes(k)?' win':'');
+  });
+  // names + active turn
+  $('name1').textContent = state.p1?state.p1.name:'P1';
+  $('name2').textContent = state.p2?state.p2.name:'waiting…';
+  $('pill1').classList.toggle('active', !state.winner && state.turn===1);
+  $('pill2').classList.toggle('active', !state.winner && state.turn===2);
+
+  // status
+  let s='';
+  if(!state.p2){ s=`Share the link — waiting for an opponent · code <span class="code">${roomCode}</span>`; }
+  else if(state.winner===3){ s='<b>Draw!</b>'; }
+  else if(state.winner){ const w=state.winner===1?state.p1.name:state.p2.name; s=`<b>${w} wins!</b>`; }
+  else { s = state.turn===myRole ? '<b>Your turn</b>' : `${(state.turn===1?state.p1.name:(state.p2?state.p2.name:'P2'))}'s turn`; }
+  $('status').innerHTML=s;
+  $('endRow').style.display = state.winner ? 'flex':'none';
+
+  refreshCoach();
+}
+
+/* ============================== COACH ============================== */
+function refreshCoach(){
+  const panel=$('coachPanel'), arrow=$('coachArrow');
+  const show = coachUnlocked && !coachHidden && state && state.p2 && !state.winner && state.turn===myRole && myRole!==0;
+  if(!show){ panel.style.display='none'; arrow.style.display='none'; return; }
+  const cells=cellsArr();
+  const {col,label,score} = bestMove(cells, myRole);
+  if(col<0){ panel.style.display='none'; arrow.style.display='none'; return; }
+  $('coachCol').textContent = col+1;       // 1-indexed for humans
+  $('coachLabel').textContent = label;
+  const pct = Math.max(5,Math.min(99, Math.round(50 + score/200)));
+  $('coachBar').style.width = pct+'%';
+  panel.style.display='flex';
+  // position arrow above that column
+  const board=$('board'); const rect=board.getBoundingClientRect();
+  const wrap=board.parentElement.getBoundingClientRect();
+  const pad=12, gap=8;
+  const colW=(rect.width-pad*2-gap*6)/7;
+  const x = (rect.left-wrap.left)+pad+col*(colW+gap)+colW/2;
+  arrow.style.left=x+'px'; arrow.style.display='block';
+}
+// H = panic hide/show coach
+document.addEventListener('keydown',e=>{
+  if(e.key==='h'||e.key==='H'){ coachHidden=!coachHidden; refreshCoach(); }
+});
+
+/* ===================== AI: perfect tactics + alpha-beta ===================== */
+function validCols(cells){ const v=[]; for(let c=0;c<COLS;c++) if(cells[idx(0,c)]===0) v.push(c); return v; }
+function dropAt(cells,c,p){ const b=cells.slice(); for(let r=ROWS-1;r>=0;r--){ if(b[idx(r,c)]===0){ b[idx(r,c)]=p; return b; } } return null; }
+
+function bestMove(cells, me){
+  const opp = me===1?2:1;
+  const moves = validCols(cells);
+  if(moves.length===0) return {col:-1};
+  // 1) immediate win
+  for(const c of moves){ const b=dropAt(cells,c,me); if(b&&checkWin(b,me)) return {col:c,label:'Winning move — take it 🏆',score:9000}; }
+  // 2) block opponent's immediate win
+  const threats = moves.filter(c=>{ const b=dropAt(cells,c,opp); return b&&checkWin(b,opp); });
+  if(threats.length===1) return {col:threats[0],label:'Block — they win otherwise 🛡️',score:-500};
+  if(threats.length>1) return {col:threats[0],label:'Multiple threats — block the main one',score:-3000};
+  // 3) avoid moves that hand opponent a win next turn
+  const safe = moves.filter(c=>{ const b=dropAt(cells,c,me); return !validCols(b).some(c2=>{const b2=dropAt(b,c2,opp);return b2&&checkWin(b2,opp);}); });
+  const pool = safe.length?safe:moves;
+  // 4) alpha-beta with iterative deepening + time cap
+  const order=[3,2,4,1,5,0,6].filter(c=>pool.includes(c));
+  let best=order[0], bestScore=-Infinity;
+  const deadline=performance.now()+450;
+  for(let depth=4; depth<=12; depth++){
+    let curBest=order[0], curScore=-Infinity, done=true;
+    for(const c of order){
+      const b=dropAt(cells,c,me);
+      let sc;
+      try{ sc=-negamax(b,depth-1,-Infinity,Infinity,opp,me,deadline); }
+      catch(_){ done=false; break; }
+      if(sc>curScore){ curScore=sc; curBest=c; }
+    }
+    if(done){ best=curBest; bestScore=curScore; } else break;
+    if(Math.abs(bestScore)>50000) break;
+  }
+  let label='Strong move';
+  if(bestScore>50000) label='Forced win in sight ✨';
+  else if(bestScore>400) label='You\'re winning — press the advantage';
+  else if(bestScore>50) label='Best move · slight edge';
+  else if(bestScore<-400) label='Tough spot — most resilient move';
+  else label='Best available move';
+  return {col:best,label,score:Math.round(bestScore)};
+}
+
+function negamax(cells, depth, alpha, beta, toMove, me, deadline){
+  if(performance.now()>deadline) throw 'timeout';
+  const other = toMove===1?2:1;
+  // terminal: did the *previous* mover (other) just win?
+  if(checkWin(cells, other)) return -100000-depth;     // bad for toMove
+  const moves=validCols(cells);
+  if(moves.length===0) return 0;                        // draw
+  if(depth===0) return evaluate(cells, toMove);
+  const order=[3,2,4,1,5,0,6].filter(c=>moves.includes(c));
+  let val=-Infinity;
+  for(const c of order){
+    const b=dropAt(cells,c,toMove);
+    const sc=-negamax(b,depth-1,-beta,-alpha,other,me,deadline);
+    if(sc>val) val=sc;
+    if(val>alpha) alpha=val;
+    if(alpha>=beta) break;
+  }
+  return val;
+}
+
+// heuristic from the perspective of `toMove`
+function evaluate(cells, toMove){
+  const opp = toMove===1?2:1;
+  let score=0;
+  // center control
+  for(let r=0;r<ROWS;r++){ if(cells[idx(r,3)]===toMove) score+=6; else if(cells[idx(r,3)]===opp) score-=6; }
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)for(const [dr,dc] of dirs){
+    const er=r+3*dr, ec=c+3*dc;
+    if(er<0||er>=ROWS||ec<0||ec>=COLS) continue;
+    let mine=0,theirs=0,empty=0;
+    for(let k=0;k<4;k++){ const v=cells[idx(r+k*dr,c+k*dc)]; if(v===toMove)mine++; else if(v===opp)theirs++; else empty++; }
+    if(mine>0&&theirs>0) continue;           // mixed window = dead
+    if(mine===3&&empty===1) score+=80;
+    else if(mine===2&&empty===2) score+=12;
+    else if(mine===1&&empty===3) score+=2;
+    if(theirs===3&&empty===1) score-=90;     // slightly defensive
+    else if(theirs===2&&empty===2) score-=12;
+    else if(theirs===1&&empty===3) score-=2;
+  }
+  return score;
+}
+
+/* ============================== UI wiring ============================== */
+$('createBtn').onclick=createRoom;
+$('joinBtn').onclick=()=>joinRoom($('joinCode').value);
+$('shareBtn').onclick=()=>{
+  const url = location.origin+location.pathname+'?room='+roomCode;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url));
+};
+$('rematchBtn').onclick=()=>{
+  if(!roomRef) return;
+  roomRef.update({cells:emptyBoard().join(''), turn:1, winner:0, lastCol:-1, moveCount:0});
+};
+$('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pathname; };
+
+// auto-join from a shared ?room= link
+(function(){
+  const p=new URLSearchParams(location.search).get('room');
+  if(p){ $('joinCode').value=p.toUpperCase(); $('createBtn').classList.add('hidden');
+         $('tagline').textContent='Enter your name to join the game.'; }
+})();
+</script>
+</body>
+</html>
