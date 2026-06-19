@@ -780,22 +780,27 @@ $('hudToggle').onclick=()=>{ hudOff=!hudOff; refreshHud(); };
     w._depth=0.25+Math.random()*0.95;
     w.appendChild(pk); box.appendChild(w); wraps.push(w);
   }
-  if(reduce) return;
+  // parallax: mouse (desktop) or device tilt (mobile). Works even with reduced motion.
   let raf=0,nx=0,ny=0;
   function apply(){ raf=0; wraps.forEach(w=>{ const d=w._depth;
-    w.style.transform=`translate(${(-nx*d*36).toFixed(1)}px, ${(-ny*d*36).toFixed(1)}px)`; }); }
+    w.style.transform=`translate(${(-nx*d*46).toFixed(1)}px, ${(-ny*d*46).toFixed(1)}px)`; }); }
   function set(x,y){ nx=Math.max(-1,Math.min(1,x)); ny=Math.max(-1,Math.min(1,y)); if(!raf) raf=requestAnimationFrame(apply); }
   window.addEventListener('mousemove',e=>set(e.clientX/innerWidth-0.5, e.clientY/innerHeight-0.5), {passive:true});
-  // mobile: tilt the phone (gyro). iOS needs a one-time tap to grant permission.
   if(touch){
-    const attach=()=>window.addEventListener('deviceorientation',e=>{ if(e.gamma==null) return; set(e.gamma/40,(e.beta-45)/40); }, {passive:true});
-    const start=()=>{
-      try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{}); }catch(_){}
+    let attached=false;
+    function onTilt(e){ const g=e.gamma, b=e.beta; if(g==null && b==null) return; set((g||0)/35, ((b||0)-45)/35); }
+    function attach(){ if(attached) return; attached=true;
+      window.addEventListener('deviceorientation', onTilt, {passive:true});
+      window.addEventListener('deviceorientationabsolute', onTilt, {passive:true});
+      window.removeEventListener('touchend', grant);
+      toast('Tilt enabled'); }
+    function grant(){
       if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
-        DeviceOrientationEvent.requestPermission().then(s=>{ if(s==='granted') attach(); }).catch(()=>{});
+        DeviceOrientationEvent.requestPermission().then(s=>{ s==='granted' ? attach() : toast('Allow motion access to use tilt'); }).catch(()=>{});
       } else attach();
-    };
-    window.addEventListener('touchstart',start,{passive:true,once:true});
+      try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{}); }catch(_){}
+    }
+    window.addEventListener('touchend', grant, {passive:true});  // retries each tap until granted
   }
 })();
 </script>
