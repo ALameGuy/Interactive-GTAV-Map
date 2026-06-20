@@ -53,14 +53,19 @@
   .bg-pucks::before,.bg-pucks::after{content:"";position:absolute;border-radius:50%;filter:blur(95px);opacity:.5}
   .bg-pucks::before{width:420px;height:420px;background:var(--red);top:-120px;left:-130px}
   .bg-pucks::after{width:460px;height:460px;background:var(--yellow);bottom:-160px;right:-150px}
-  .puck-wrap{position:absolute;will-change:transform;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+  .puck-wrap{position:absolute;will-change:transform;perspective:700px;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
   .bg-puck{position:relative;width:100%;height:100%;border-radius:50%;animation:floaty linear infinite;
     box-shadow:inset 0 -7px 12px rgba(0,0,0,.45), inset 0 6px 10px rgba(255,255,255,.45), 0 8px 16px rgba(0,0,0,.3)}
   .bg-puck::after{content:"";position:absolute;inset:27%;border-radius:50%;
     box-shadow:inset 0 2px 4px rgba(0,0,0,.5), inset 0 -2px 3px rgba(255,255,255,.3)}
   .bg-puck.red{background:radial-gradient(circle at 38% 32%,var(--red-hi),var(--red) 60%,var(--red-lo))}
   .bg-puck.yellow{background:radial-gradient(circle at 38% 32%,var(--yellow-hi),var(--yellow) 60%,var(--yellow-lo))}
-  @keyframes floaty{0%{transform:translateY(0) rotate(0)}50%{transform:translateY(-26px) rotate(7deg)}100%{transform:translateY(0) rotate(0)}}
+  @keyframes floaty{
+    0%{transform:translateY(0) rotateX(0) rotateY(0)}
+    25%{transform:translateY(-12px) rotateX(14deg) rotateY(-12deg)}
+    50%{transform:translateY(-22px) rotateX(0) rotateY(12deg)}
+    75%{transform:translateY(-10px) rotateX(-12deg) rotateY(7deg)}
+    100%{transform:translateY(0) rotateX(0) rotateY(0)}}
   /* keep interactive content above the art */
   .logo,.tagline,#lobby,#game,.footer{position:relative;z-index:1}
 
@@ -330,6 +335,7 @@ if(!myId){ myId = Math.random().toString(36).slice(2,10); localStorage.setItem('
 let hudOn = localStorage.getItem('c4hud')==='1';
 let hudOff = false;
 let roomCode = null, roomRef = null, myRole = 0, state = null;
+let puckFX = null, pucksDown = false;   // background-puck drop/float controller
 
 async function sha256(str){
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
@@ -539,6 +545,11 @@ function render(){
   // confetti on a fresh win for either player
   if(state.winner && state.winner!==3){ if(!confettiDone){ spawnConfetti(); confettiDone=true; } }
   else { confettiDone=false; }
+
+  // background pucks drop out when a game ends, float back on rematch
+  const over = !!state.winner;
+  if(over && !pucksDown){ pucksDown=true; if(puckFX) puckFX.drop(); }
+  else if(!over && pucksDown){ pucksDown=false; if(puckFX) puckFX.rise(); }
 
   renderRematch();
   refreshHud();
@@ -779,23 +790,37 @@ $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pa
   const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch=window.matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
   if(touch) document.body.classList.add('is-touch');
+  // older-device fallback: fewer pucks on low-memory / low-core machines
+  const lowEnd=(navigator.deviceMemory && navigator.deviceMemory<=4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency<=4);
+  const COUNT=lowEnd?7:12;
   const wraps=[];
-  for(let i=0;i<12;i++){
+  for(let i=0;i<COUNT;i++){
     const w=document.createElement('div'); w.className='puck-wrap';
     const pk=document.createElement('div'); pk.className='bg-puck '+(i%2?'yellow':'red');
     const s=34+Math.random()*68;
     w.style.width=s+'px'; w.style.height=s+'px';
-    w.style.left=(Math.random()*96)+'vw'; w.style.top=(Math.random()*94)+'vh';
+    w.style.left=(Math.random()*96)+'vw'; w.style.top=(Math.random()*90)+'vh';
     if(reduce){ pk.style.animation='none'; }
     else { pk.style.animationDuration=(9+Math.random()*11)+'s'; pk.style.animationDelay=(-Math.random()*12)+'s'; }
     w._depth=0.25+Math.random()*0.95;
     w.appendChild(pk); box.appendChild(w); wraps.push(w);
   }
-  // parallax: mouse (desktop) or device tilt (mobile). Works even with reduced motion.
+  // drop out the bottom on game over; drift back up on rematch
+  let locked=false;
+  function drop(){ locked=true; wraps.forEach(w=>{ w.firstChild.style.animationPlayState='paused';
+    w.style.transition='transform '+(0.7+Math.random()*0.5).toFixed(2)+'s cubic-bezier(.45,.05,.75,.65) '+(Math.random()*0.3).toFixed(2)+'s';
+    w.style.transform='translateY(125vh) rotate('+(Math.random()*140-70|0)+'deg)'; }); }
+  function rise(){ wraps.forEach(w=>{
+    w.style.transition='transform '+(1.5+Math.random()*0.9).toFixed(2)+'s cubic-bezier(.2,.7,.3,1) '+(Math.random()*0.5).toFixed(2)+'s';
+    w.style.transform=''; });
+    setTimeout(()=>{ locked=false; wraps.forEach(w=>{ w.style.transition=''; w.firstChild.style.animationPlayState=''; }); }, 2700); }
+  puckFX={ drop: reduce?function(){}:drop, rise: reduce?function(){}:rise };
+  if(reduce) return;
+  // parallax: mouse (desktop) or device tilt (mobile)
   let raf=0,nx=0,ny=0;
-  function apply(){ raf=0; wraps.forEach(w=>{ const d=w._depth;
+  function apply(){ raf=0; if(locked) return; wraps.forEach(w=>{ const d=w._depth;
     w.style.transform=`translate(${(-nx*d*46).toFixed(1)}px, ${(-ny*d*46).toFixed(1)}px)`; }); }
-  function set(x,y){ nx=Math.max(-1,Math.min(1,x)); ny=Math.max(-1,Math.min(1,y)); if(!raf) raf=requestAnimationFrame(apply); }
+  function set(x,y){ if(locked) return; nx=Math.max(-1,Math.min(1,x)); ny=Math.max(-1,Math.min(1,y)); if(!raf) raf=requestAnimationFrame(apply); }
   window.addEventListener('mousemove',e=>set(e.clientX/innerWidth-0.5, e.clientY/innerHeight-0.5), {passive:true});
   if(touch){
     let attached=false;
