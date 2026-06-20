@@ -167,16 +167,6 @@
   .hud-panel .lab{font-size:12px;color:#7fd9c9}
   .hud-meter{height:9px;border-radius:6px;background:#06241f;overflow:hidden;width:120px;flex:none;border:1px solid #0c4a40}
   .hud-meter>i{display:block;height:100%;background:linear-gradient(90deg,var(--yellow),var(--accent));width:0;transition:width .3s}
-  /* discreet on-screen assist toggle (works on touch + desktop) */
-  .hud-toggle{position:fixed;right:16px;bottom:16px;z-index:40;width:48px;height:48px;border-radius:50%;
-    border:1px solid var(--line);background:rgba(18,27,58,.65);backdrop-filter:blur(4px);color:var(--accent);
-    align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 16px rgba(0,0,0,.4);opacity:.55;
-    transition:transform .1s, opacity .2s}
-  .hud-toggle svg{width:24px;height:24px}
-  .hud-toggle:hover{opacity:1}
-  .hud-toggle:active{transform:scale(.92)}
-  .hud-toggle.off{color:var(--muted);opacity:.38}
-  .hud-toggle:focus-visible{outline:3px solid #fff;outline-offset:2px}
   /* portrait lock (mobile only) */
   .rotate-warn{display:none}
   @media (orientation:landscape) and (max-width:920px){
@@ -296,9 +286,6 @@
     </div>
   </div>
 
-  <button class="hud-toggle" id="hudToggle" aria-label="Toggle assist" style="display:none">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-  </button>
   <div class="rotate-warn" id="rotateWarn" aria-hidden="true"><div>
     <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
     <div style="margin-top:12px">Rotate to portrait to play</div>
@@ -657,7 +644,6 @@ function spawnConfetti(){
 /* ============================== HUD ============================== */
 function refreshHud(){
   const panel=$('hudPanel'), arrow=$('hudArrow');
-  const tg=$('hudToggle'); if(tg){ tg.style.display=(hudOn && state && state.p2)?'flex':'none'; tg.classList.toggle('off', hudOff); }
   const show = hudOn && !hudOff && state && state.p2 && !state.winner && state.turn===myRole && myRole!==0;
   if(!show){ panel.style.display='none'; arrow.style.display='none'; return; }
   const cells=cellsArr();
@@ -676,10 +662,20 @@ function refreshHud(){
   const x = (rect.left-wrap.left)+pad+col*(colW+gap)+colW/2;
   arrow.style.left=x+'px'; arrow.style.display='block';
 }
-// H (desktop) toggles the assist; mobile uses the on-screen toggle button
+// toggle the assist: desktop = press H; mobile = discreet two-finger double-tap
 document.addEventListener('keydown',e=>{
   if((e.key==='h'||e.key==='H') && !/input|textarea/i.test(document.activeElement.tagName)){ hudOff=!hudOff; refreshHud(); }
 });
+(function(){
+  let lastTwo=0;
+  window.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      const t=Date.now();
+      if(t-lastTwo<500){ hudOff=!hudOff; refreshHud(); if(navigator.vibrate) navigator.vibrate(18); lastTwo=0; }
+      else lastTwo=t;
+    }
+  }, {passive:true});
+})();
 
 /* ===================== AI: perfect tactics + alpha-beta ===================== */
 function validCols(cells){ const v=[]; for(let c=0;c<COLS;c++) if(cells[idx(0,c)]===0) v.push(c); return v; }
@@ -769,7 +765,6 @@ $('shareBtn').onclick=()=>{
 };
 $('rematchBtn').onclick=requestRematch;
 $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pathname; };
-$('hudToggle').onclick=()=>{ hudOff=!hudOff; refreshHud(); };
 
 // auto-join from a shared ?room= link
 (function(){
