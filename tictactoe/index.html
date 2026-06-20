@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Tic Tac Toe</title>
+<meta name="description" content="Three in a row, head to head. Challenge a friend." />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Tic Tac Toe — 1v1 me bro" />
+<meta property="og:description" content="Three in a row, head to head. Challenge a friend." />
+<meta property="og:url" content="https://alameguy.github.io/1v1-me-bro/tictactoe/" />
+<meta name="theme-color" content="#1a5cf0" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070c1c; --bg2:#0e1530; --panel:#121b3a; --panel2:#0d1430; --line:#23305e;
+    --red:#ff3b4e; --red-hi:#ff97a2; --yellow:#ffce1f; --yellow-hi:#ffe487;
+    --board:#1a5cf0; --board2:#1043c0; --cell:#0c1430;
+    --txt:#eef2ff; --muted:#93a0ce; --accent:#2fe3c0; --accent-lo:#0a4a40; --bad:#ff5d72;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:'Inter',system-ui,sans-serif;color:var(--txt);min-height:100%;padding:20px 16px 40px;
+    display:flex;flex-direction:column;align-items:center;-webkit-tap-highlight-color:transparent;
+    background:
+      radial-gradient(700px 420px at 50% -8%, #1b2a66 0%, rgba(27,42,102,0) 60%),
+      radial-gradient(circle at 50% 50%, rgba(255,255,255,.022) 1px, transparent 1px) 0 0/22px 22px,
+      var(--bg);}
+  .hidden{display:none!important}
+  a.back{position:fixed;top:14px;left:16px;color:var(--muted);text-decoration:none;font-size:13px;font-weight:600;z-index:30}
+  a.back:hover{color:var(--txt)}
+
+  .logo{font-family:'Fredoka',sans-serif;font-weight:700;font-size:40px;margin:6px 0 2px;letter-spacing:.5px;text-align:center}
+  .logo .x{color:var(--red)} .logo .o{color:var(--yellow)}
+  .logo span{text-shadow:0 2px 0 #0a1230,0 4px 12px rgba(0,0,0,.5)}
+  .tagline{font-family:ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:3px;font-size:11px;
+    color:#7d8bbd;margin-top:14px;margin-bottom:22px;text-align:center}
+
+  .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:22px;
+    padding:24px;width:100%;max-width:430px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+  label.fld{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:0 0 6px 2px;text-transform:uppercase;letter-spacing:.6px}
+  input{width:100%;padding:14px 15px;border-radius:13px;border:1px solid var(--line);background:#0a1126;color:var(--txt);
+    font-size:16px;font-family:inherit;outline:none}
+  input:focus{border-color:var(--accent)}
+  .gap{height:14px}
+  .btn{font-family:'Fredoka',sans-serif;cursor:pointer;border:none;border-radius:14px;font-size:17px;font-weight:600;
+    padding:14px 18px;width:100%;color:#06121f;background:linear-gradient(180deg,#56f0d4,var(--accent));
+    box-shadow:0 5px 0 #129e85,0 8px 18px rgba(47,227,192,.28);transition:transform .08s,box-shadow .08s,filter .15s;letter-spacing:.3px}
+  .btn:hover{filter:brightness(1.05)} .btn:active{transform:translateY(4px);box-shadow:0 1px 0 #129e85}
+  .btn.red{background:linear-gradient(180deg,var(--red-hi),var(--red));box-shadow:0 5px 0 #c01428;color:#fff}
+  .btn.ghost{background:transparent;color:var(--txt);border:2px solid var(--line);box-shadow:none}
+  .btn.sm{width:auto;padding:11px 16px;font-size:15px}
+  .or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px;margin:18px 0 16px;font-weight:600}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .row{display:flex;gap:12px}.row .grow{flex:1}
+
+  #game{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:430px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;width:100%;gap:10px;flex-wrap:wrap}
+  .players{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pill{display:flex;align-items:center;gap:9px;background:var(--panel);border:1.5px solid var(--line);
+    padding:8px 14px;border-radius:999px;font-size:14px;font-weight:600;transition:.2s}
+  .pmark{width:18px;height:18px;flex:none}
+  .pill.active{border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,227,192,.22)}
+  .pill .score{min-width:24px;text-align:center;background:#0a1126;border:1px solid var(--line);border-radius:8px;
+    padding:1px 7px;font-size:13px;font-weight:700;font-family:'Fredoka',sans-serif}
+  .status{font-size:15px;color:var(--muted);min-height:22px;text-align:center;font-weight:500}
+  .status b{color:var(--txt);font-weight:700}
+  .code{font-family:'Fredoka',monospace;font-weight:700;letter-spacing:3px;color:var(--yellow);font-size:17px}
+
+  .board{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;background:linear-gradient(180deg,var(--board),var(--board2));
+    padding:14px;border-radius:24px;width:100%;max-width:380px;border-bottom:6px solid #0a2f9c;
+    box-shadow:inset 0 3px 0 rgba(255,255,255,.18),0 20px 50px rgba(16,67,192,.4)}
+  .sq{aspect-ratio:1/1;background:var(--cell);border-radius:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 4px 9px rgba(0,0,0,.6);transition:background .12s}
+  .sq svg{width:64%;height:64%;animation:pop .25s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+  .sq.empty:hover{background:#142048}
+  .sq.win{background:rgba(47,227,192,.18);box-shadow:inset 0 0 0 3px var(--accent)}
+  .sq.hint{box-shadow:inset 0 0 0 3px var(--accent),inset 0 4px 9px rgba(0,0,0,.5)}
+  .markX{stroke:var(--red);stroke-width:7;stroke-linecap:round;fill:none}
+  .markO{stroke:var(--yellow);stroke-width:7;fill:none}
+
+  .hud-panel{display:none;width:100%;max-width:380px;background:linear-gradient(95deg,var(--accent-lo),#0a342d);
+    border:1.5px solid var(--accent);border-radius:16px;padding:13px 16px;align-items:center;gap:12px;
+    box-shadow:0 0 28px rgba(47,227,192,.28)}
+  .hud-panel .eye{width:24px;height:24px;flex:none;color:var(--accent)}
+  .hud-panel .big{font-family:'Fredoka',sans-serif;font-size:18px;font-weight:700;color:#bff7ec}
+  .hud-panel .lab{font-size:12px;color:#7fd9c9}
+
+  .overlay{position:fixed;inset:0;background:rgba(4,8,20,.72);backdrop-filter:blur(5px);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:20px}
+  .overlay.show{display:flex}
+  .modal{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1.5px solid var(--line);border-radius:22px;
+    padding:26px 24px;width:100%;max-width:360px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:popm .35s cubic-bezier(.3,1.3,.55,1)}
+  @keyframes popm{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal h3{font-family:'Fredoka',sans-serif;margin:0 0 6px;font-size:22px}
+  .modal p{margin:0 0 20px;color:var(--muted);font-size:14px}
+  .dots{display:inline-flex;gap:5px;margin-left:3px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:dotty 1.2s infinite}
+  .dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+  @keyframes dotty{0%,60%,100%{opacity:.25}30%{opacity:1}}
+  #endRow{display:none;gap:12px;width:100%;max-width:380px}#endRow .grow{flex:1}
+
+  .footer{color:#2b3866;font-size:11px;margin-top:24px;user-select:none}.footer .dotv{cursor:default;padding:0 4px}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel);
+    border:1.5px solid var(--accent);color:var(--txt);padding:12px 18px;border-radius:12px;font-size:14px;opacity:0;transition:.3s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion:reduce){.sq svg,.modal{animation:none}}
+</style>
+</head>
+<body>
+  <a class="back" href="../">← 1v1 me bro</a>
+  <div class="logo"><span class="x">TIC</span> <span class="o">TAC</span> <span class="x">TOE</span></div>
+  <div class="tagline" id="tagline">three in a row wins</div>
+
+  <div class="card" id="lobby">
+    <label class="fld" for="nameInput">Your name</label>
+    <input id="nameInput" placeholder="e.g. Goat" maxlength="16" autocomplete="off" />
+    <div class="gap"></div>
+    <button class="btn" id="createBtn">Create a Game</button>
+    <div class="or">or join a game</div>
+    <label class="fld" for="joinCode">Game code</label>
+    <div class="row">
+      <input id="joinCode" class="grow" placeholder="ABCD" maxlength="6" autocomplete="off" style="text-transform:uppercase;letter-spacing:3px;font-family:'Fredoka',sans-serif" />
+      <button class="btn red sm" id="joinBtn">Join</button>
+    </div>
+  </div>
+
+  <div id="game" class="hidden">
+    <div class="topbar">
+      <div class="players">
+        <div class="pill" id="pill1"><span class="pmark" id="mark1"></span><span id="name1">P1</span><span class="score" id="score1">0</span></div>
+        <div class="pill" id="pill2"><span class="pmark" id="mark2"></span><span id="name2">P2</span><span class="score" id="score2">0</span></div>
+      </div>
+      <button class="btn ghost sm" id="shareBtn" style="width:auto">Share link</button>
+    </div>
+    <div class="status" id="status">Setting up…</div>
+
+    <div class="hud-panel" id="hudPanel">
+      <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+      <div><div class="big" id="hudBig">—</div><div class="lab" id="hudLabel">analyzing…</div></div>
+    </div>
+
+    <div class="board" id="board"></div>
+
+    <div id="endRow">
+      <button class="btn grow" id="rematchBtn">Rematch</button>
+      <button class="btn ghost grow" id="leaveBtn">Leave</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="rematchOverlay"><div class="modal">
+    <h3 id="rmTitle">Rematch?</h3><p id="rmText">Run it back?</p>
+    <div class="row" id="rmButtons"></div>
+  </div></div>
+
+  <div class="footer" id="footer">tic tac toe · v1 <span class="dotv" id="secretDot">·</span></div>
+  <div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: 'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4',
+  authDomain: 'map-v2-6b2e4.firebaseapp.com',
+  databaseURL: 'https://map-v2-6b2e4-default-rtdb.firebaseio.com',
+  projectId: 'map-v2-6b2e4', storageBucket: 'map-v2-6b2e4.appspot.com',
+  messagingSenderId: '216550808002', appId: '1:216550808002:web:3443680b0ebfebbae09e5b'
+};
+// Access gate: unlocks the assist when the entered key hashes to this (key never stored here).
+const UNLOCK_SHA256 = "2bca9ed13bcb519f4c2aa0af0615a64890e047452a1dc102617c2f62e2b892ca";
+
+const $ = id => document.getElementById(id);
+let db=null; try{ firebase.initializeApp(firebaseConfig); db=firebase.database(); }catch(e){ console.warn(e); }
+let myId=localStorage.getItem('mb_id'); if(!myId){ myId=Math.random().toString(36).slice(2,10); localStorage.setItem('mb_id',myId); }
+let hudOn=localStorage.getItem('mb_coach')==='1', hudOff=false;
+let roomCode=null, roomRef=null, myRole=0, state=null;
+
+async function sha256(s){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+window.genUnlock=async p=>{ const h=await sha256(p); console.log('Paste as UNLOCK_SHA256:\n'+h); return h; };
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2000); }
+
+// SVG marks
+function svgX(){ return '<svg viewBox="0 0 100 100"><path class="markX" d="M22 22 L78 78 M78 22 L22 78"/></svg>'; }
+function svgO(){ return '<svg viewBox="0 0 100 100"><circle class="markO" cx="50" cy="50" r="30"/></svg>'; }
+function markEl(p){ return p===1?svgX():(p===2?svgO():''); }
+
+// unlock (triple-click footer dot)
+let dc=0,dt=null;
+$('secretDot').addEventListener('click',()=>{ dc++; clearTimeout(dt); dt=setTimeout(()=>dc=0,600);
+  if(dc>=3){ dc=0; const p=prompt('passphrase'); if(p==null)return;
+    sha256(p.trim()).then(h=>{ if(h===UNLOCK_SHA256){ hudOn=true; localStorage.setItem('mb_coach','1'); toast('Unlocked'); refreshHud(); } else toast('nope'); }); }});
+(function(){ const m=location.hash.match(/k=([^&]+)/); if(m){ sha256(decodeURIComponent(m[1])).then(h=>{ if(h===UNLOCK_SHA256){hudOn=true;localStorage.setItem('mb_coach','1');} history.replaceState(null,'',location.pathname+location.search); }); }})();
+
+/* ---------- game ---------- */
+const LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function emptyBoard(){ return '000000000'; }
+function cellsArr(){ return state.cells.split('').map(Number); }
+function winnerOf(c){ for(const L of LINES){ const[a,b,d]=L; if(c[a]&&c[a]===c[b]&&c[a]===c[d]) return c[a]; } return 0; }
+function winLine(c){ for(const L of LINES){ const[a,b,d]=L; if(c[a]&&c[a]===c[b]&&c[a]===c[d]) return L; } return []; }
+function isFull(c){ return c.every(v=>v!==0); }
+
+function createRoom(){
+  const name=($('nameInput').value.trim()||'Player 1').slice(0,16);
+  if(!db){ toast('Firebase config missing'); return; }
+  roomCode=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+  db.ref('ttt/'+roomCode).set({ p1:{id:myId,name}, p2:null, cells:emptyBoard(), turn:1, starter:1, winner:0,
+    p1score:0, p2score:0, rematch:null, createdAt:Date.now() })
+    .then(enterRoom).catch(e=>{ console.error(e); toast('DB write blocked — check rules for "ttt"'); });
+}
+function joinRoom(code){
+  code=(code||'').toUpperCase().trim(); if(!db){ toast('Firebase config missing'); return; }
+  if(code.length<4){ toast('Enter a valid code'); return; }
+  const name=($('nameInput').value.trim()||'Player 2').slice(0,16);
+  const ref=db.ref('ttt/'+code);
+  ref.get().then(s=>{ if(!s.exists()){ toast('Game not found'); return; } const r=s.val(); roomCode=code;
+    if(r.p1&&r.p1.id===myId) return enterRoom();
+    if(r.p2&&r.p2.id===myId) return enterRoom();
+    if(!r.p2) ref.child('p2').set({id:myId,name}).then(enterRoom);
+    else { toast('Game full — spectating'); enterRoom(); } });
+}
+function enterRoom(){
+  $('lobby').classList.add('hidden'); $('game').classList.remove('hidden');
+  $('mark1').innerHTML=svgX(); $('mark2').innerHTML=svgO();
+  buildBoard();
+  roomRef=db.ref('ttt/'+roomCode);
+  roomRef.on('value',s=>{ if(!s.exists())return; state=s.val();
+    if(state.p1&&state.p1.id===myId) myRole=1; else if(state.p2&&state.p2.id===myId) myRole=2; else myRole=0;
+    render(); });
+}
+function placeMove(i){
+  if(!state||state.winner) return; if(myRole!==state.turn) return;
+  const c=cellsArr(); if(c[i]!==0) return; c[i]=myRole;
+  const w=winnerOf(c)?myRole:(isFull(c)?3:0);
+  const upd={ cells:c.join(''), turn:state.turn===1?2:1, winner:w };
+  if(w===1) upd.p1score=(state.p1score||0)+1; else if(w===2) upd.p2score=(state.p2score||0)+1;
+  roomRef.update(upd);
+}
+
+let built=false;
+function buildBoard(){ if(built)return; const b=$('board'); b.innerHTML='';
+  for(let i=0;i<9;i++){ const d=document.createElement('div'); d.className='sq'; d.dataset.i=i; d.onclick=()=>placeMove(i); b.appendChild(d); }
+  built=true;
+}
+function render(){
+  const c=cellsArr(); const wl=state.winner&&state.winner!==3?winLine(c):[];
+  document.querySelectorAll('.sq').forEach(sq=>{ const i=+sq.dataset.i, v=c[i];
+    sq.className='sq'+(v?'':' empty')+(wl.includes(i)?' win':'');
+    sq.innerHTML=markEl(v);
+  });
+  $('name1').textContent=state.p1?state.p1.name:'P1'; $('name2').textContent=state.p2?state.p2.name:'waiting…';
+  $('score1').textContent=state.p1score||0; $('score2').textContent=state.p2score||0;
+  $('pill1').classList.toggle('active',!state.winner&&state.turn===1);
+  $('pill2').classList.toggle('active',!state.winner&&state.turn===2);
+  let s='';
+  if(!state.p2) s=`Share the link to invite a friend · code <span class="code">${roomCode}</span>`;
+  else if(state.winner===3) s='<b>Draw!</b>';
+  else if(state.winner){ const w=state.winner===1?state.p1.name:state.p2.name; s=`<b>${w} wins! 🏆</b>`; }
+  else s = state.turn===myRole ? '<b>Your turn</b>' : `Waiting on ${(state.turn===1?state.p1.name:(state.p2?state.p2.name:'P2'))}…`;
+  $('status').innerHTML=s;
+  renderRematch(); refreshHud();
+}
+
+/* ---------- rematch ---------- */
+function renderRematch(){
+  const ov=$('rematchOverlay'), end=$('endRow'), rm=state.rematch, over=!!state.winner;
+  if(rm&&rm.declined){ if(rm.declined===myRole){ toast('Opponent declined'); roomRef.update({rematch:null}); } ov.classList.remove('show'); end.style.display=over?'flex':'none'; return; }
+  if(rm&&rm.by){
+    if(rm.by===myRole){ $('rmTitle').textContent='Rematch sent'; $('rmText').innerHTML='Waiting for opponent<span class="dots"><i></i><i></i><i></i></span>';
+      $('rmButtons').innerHTML='<button class="btn ghost grow" id="rmCancel">Cancel</button>'; $('rmCancel').onclick=()=>roomRef.update({rematch:null}); ov.classList.add('show'); end.style.display='none'; }
+    else { const who=(rm.by===1?state.p1?.name:state.p2?.name)||'Opponent'; $('rmTitle').textContent='Rematch?'; $('rmText').textContent=`${who} wants to run it back.`;
+      $('rmButtons').innerHTML='<button class="btn grow" id="rmAcc">Accept</button><button class="btn ghost grow" id="rmDec">Decline</button>';
+      $('rmAcc').onclick=acceptRematch; $('rmDec').onclick=()=>roomRef.update({rematch:{declined:rm.by}}); ov.classList.add('show'); end.style.display='none'; }
+    return;
+  }
+  ov.classList.remove('show'); end.style.display=over?'flex':'none';
+}
+function requestRematch(){ if(!roomRef||!state)return; if(state.rematch&&state.rematch.by&&state.rematch.by!==myRole){ acceptRematch(); return; } roomRef.update({rematch:{by:myRole}}); }
+function acceptRematch(){ const ns=(state.starter||1)===1?2:1; roomRef.update({cells:emptyBoard(), turn:ns, starter:ns, winner:0, rematch:null}); }
+
+/* ---------- coach (host-only, passphrase-gated) ---------- */
+function refreshHud(){
+  const panel=$('hudPanel');
+  document.querySelectorAll('.sq').forEach(s=>s.classList.remove('hint'));
+  const show = hudOn && !hudOff && state && state.p2 && !state.winner && state.turn===myRole && myRole!==0;
+  if(!show){ panel.style.display='none'; return; }
+  const c=cellsArr(); const {cell,label}=bestMove(c,myRole);
+  if(cell<0){ panel.style.display='none'; return; }
+  const sq=document.querySelector('.sq[data-i="'+cell+'"]'); if(sq) sq.classList.add('hint');
+  $('hudBig').textContent='Play the glowing square'; $('hudLabel').textContent=label;
+  panel.style.display='flex';
+}
+document.addEventListener('keydown',e=>{ if((e.key==='h'||e.key==='H')&&!/input/i.test(document.activeElement.tagName)){ hudOff=!hudOff; refreshHud(); }});
+(function(){ let last=0; window.addEventListener('touchstart',e=>{ if(e.touches.length===2){ const t=Date.now(); if(t-last<500){ hudOff=!hudOff; refreshHud(); if(navigator.vibrate)navigator.vibrate(18); last=0; } else last=t; } },{passive:true}); })();
+
+/* perfect-play minimax (3x3 = instant) */
+function mmWinner(c){ for(const L of LINES){ const[a,b,d]=L; if(c[a]&&c[a]===c[b]&&c[a]===c[d]) return c[a]; } return 0; }
+function minimax(c,toMove,me,depth){
+  const w=mmWinner(c); if(w) return {score: w===me?(10-depth):(depth-10)};
+  if(c.every(v=>v!==0)) return {score:0};
+  let best = toMove===me?{score:-1e9,move:-1}:{score:1e9,move:-1};
+  for(let i=0;i<9;i++) if(c[i]===0){ c[i]=toMove; const r=minimax(c,toMove===1?2:1,me,depth+1); c[i]=0;
+    if(toMove===me){ if(r.score>best.score) best={score:r.score,move:i}; }
+    else { if(r.score<best.score) best={score:r.score,move:i}; } }
+  return best;
+}
+function bestMove(cells,me){
+  const c=cells.slice(); if(c.every(v=>v!==0)) return {cell:-1};
+  const r=minimax(c,me,me,0);
+  let label='Best move';
+  if(r.score>=9) label='Winning line ✦'; else if(r.score>0) label='You\'re ahead — press it';
+  else if(r.score===0) label='Best move — keeps you safe'; else label='Tough spot — most resilient';
+  return {cell:r.move, label};
+}
+
+/* ---------- wiring ---------- */
+$('createBtn').onclick=createRoom;
+$('joinBtn').onclick=()=>joinRoom($('joinCode').value);
+$('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ $('joinCode').value?joinRoom($('joinCode').value):createRoom(); }});
+$('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom($('joinCode').value); });
+$('shareBtn').onclick=()=>{ const url=location.origin+location.pathname+'?room='+roomCode;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url)); };
+$('rematchBtn').onclick=requestRematch;
+$('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pathname; };
+(function(){ const p=new URLSearchParams(location.search).get('room');
+  if(p){ $('joinCode').value=p.toUpperCase(); $('createBtn').classList.add('hidden'); $('tagline').textContent='enter your name to join'; }})();
+</script>
+</body>
+</html>
