@@ -34,9 +34,12 @@
   .wordmark{font-family:'Fredoka',sans-serif;font-weight:700;font-size:clamp(44px,9vw,84px);line-height:.95;
     letter-spacing:.5px;text-align:center;margin:8px 0 2px}
   .wordmark .one{color:var(--red)} .wordmark .v{color:var(--yellow)} .wordmark .bro{color:#fff}
-  .wordmark span{text-shadow:0 3px 0 #0a1230,0 6px 16px rgba(0,0,0,.5)}
+  .wordmark span{display:inline-block;margin:0 4px;text-shadow:0 3px 0 #0a1230,0 6px 16px rgba(0,0,0,.5)}
   .tag{font-family:ui-monospace,Consolas,monospace;text-transform:uppercase;letter-spacing:3px;
-    font-size:12px;color:#7d8bbd;margin-bottom:42px;text-align:center}
+    font-size:12px;color:#7d8bbd;margin-bottom:22px;text-align:center}
+  .section-label{width:100%;max-width:880px;margin:30px 0 14px 6px;font-family:ui-monospace,Consolas,monospace;
+    text-transform:uppercase;letter-spacing:3px;font-size:12px;font-weight:700;color:var(--accent)}
+  .section-label.first{margin-top:8px}
 
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px;width:100%;max-width:880px}
   .card{position:relative;display:flex;flex-direction:column;gap:14px;text-decoration:none;color:inherit;
@@ -71,6 +74,7 @@
   <h1 class="wordmark"><span class="one">1</span><span class="v">V</span><span class="one">1</span> <span class="bro">ME BRO</span></h1>
   <div class="tag">pick a game · challenge a friend</div>
 
+  <div class="section-label first">1v1 games</div>
   <div class="grid">
     <!-- Drop Four -->
     <a class="card" href="connect4/">
@@ -96,7 +100,10 @@
       <p>Three in a row, head to head. Quick rounds, instant rematches.</p>
       <span class="go">Play <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
     </a>
+  </div>
 
+  <div class="section-label">crew tools</div>
+  <div class="grid">
     <!-- GTA Squad Map -->
     <a class="card" href="map/">
       <div class="emblem">
