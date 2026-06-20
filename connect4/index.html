@@ -60,6 +60,9 @@
     box-shadow:inset 0 2px 4px rgba(0,0,0,.5), inset 0 -2px 3px rgba(255,255,255,.3)}
   .bg-puck.red{background:radial-gradient(circle at 38% 32%,var(--red-hi),var(--red) 60%,var(--red-lo))}
   .bg-puck.yellow{background:radial-gradient(circle at 38% 32%,var(--yellow-hi),var(--yellow) 60%,var(--yellow-lo))}
+  .puck-ripple{position:fixed;width:24px;height:24px;border-radius:50%;border:2px solid var(--accent);
+    transform:translate(-50%,-50%) scale(0);opacity:.7;pointer-events:none;z-index:1;animation:puckripple .65s ease-out forwards}
+  @keyframes puckripple{to{transform:translate(-50%,-50%) scale(9);opacity:0}}
   @keyframes floaty{
     0%{transform:rotateZ(0deg) rotateY(0deg) rotateX(0deg)}
     25%{transform:rotateZ(90deg) rotateY(24deg) rotateX(16deg)}
@@ -809,14 +812,15 @@ $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pa
   const draw=()=>{ for(const p of P) p.el.style.transform=`translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0)`; };
   draw();
 
-  let mode='float', gx=0, gy=0, running=false, raf=0, last=0;
+  let mode='float', attractor=null, running=false, raf=0, last=0;
   const MAXV=92;
   function step(now){
     if(!running) return;
     let dt=(now-last)/1000; last=now; if(!(dt>0)) dt=0.016; if(dt>0.05) dt=0.05;
     const W=innerWidth, H=innerHeight;
     for(const p of P){
-      if(mode==='drop'){ p.vy += 1500*dt; } else { p.vx += gx*dt; p.vy += gy*dt; }
+      if(mode==='drop'){ p.vy += 1500*dt; }
+      else if(attractor && now<attractor.until){ const dx=attractor.x-(p.x+p.r), dy=attractor.y-(p.y+p.r), dd=Math.hypot(dx,dy)||1; p.vx+=(dx/dd)*900*dt; p.vy+=(dy/dd)*900*dt; }
       p.x += p.vx*dt; p.y += p.vy*dt;
       if(p.x<0){ p.x=0; p.vx=Math.abs(p.vx); } else if(p.x>W-p.size){ p.x=W-p.size; p.vx=-Math.abs(p.vx); }
       if(mode!=='drop'){
@@ -856,13 +860,22 @@ $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pa
   if(reduce) return;
   start();
 
-  // mobile: tilt the phone => gravity direction (reuses the gyro permission flow)
+  // background taps: single-click repels pucks, double-click magnet-pulls them (both ripple)
+  function ripple(x,y,col){ const r=document.createElement('div'); r.className='puck-ripple'; r.style.left=x+'px'; r.style.top=y+'px'; if(col) r.style.borderColor=col; document.body.appendChild(r); setTimeout(()=>r.remove(),650); }
+  function magnet(x,y){ attractor={x,y,until:performance.now()+400}; ripple(x,y,'var(--accent)'); start(); }
+  function repel(x,y){ for(const p of P){ const dx=(p.x+p.r)-x, dy=(p.y+p.r)-y, d=Math.hypot(dx,dy)||1, f=Math.min(150,9000/(d+50)); p.vx+=(dx/d)*f; p.vy+=(dy/d)*f; } ripple(x,y,'var(--red)'); start(); }
+  let clickTimer=null;
+  window.addEventListener('click', e=>{ if(e.target!==document.body) return;
+    if(clickTimer){ clearTimeout(clickTimer); clickTimer=null; magnet(e.clientX,e.clientY); }
+    else clickTimer=setTimeout(()=>{ clickTimer=null; repel(e.clientX,e.clientY); }, 250); });
+
+  // mobile: a deliberate tilt-flick nudges the pucks once (not a constant pull)
   if(touch){
-    let attached=false;
+    let attached=false, armed=true;
     function onTilt(e){ const g=e.gamma, b=e.beta; if(g==null && b==null) return;
-      const tg=g||0, tb=(b||0)-45;
-      gx = Math.abs(tg)<4 ? 0 : Math.max(-1,Math.min(1,tg/40))*190;
-      gy = Math.abs(tb)<6 ? 0 : Math.max(-1,Math.min(1,tb/40))*190; }
+      const tx=g||0, ty=(b||0)-45, mag=Math.hypot(tx,ty);
+      if(mag>22 && armed){ armed=false; const d=mag||1, power=72; for(const p of P){ p.vx+=(tx/d)*power; p.vy+=(ty/d)*power; } start(); }
+      else if(mag<10){ armed=true; } }
     function attach(){ if(attached) return; attached=true;
       window.addEventListener('deviceorientation', onTilt, {passive:true});
       window.addEventListener('deviceorientationabsolute', onTilt, {passive:true});
