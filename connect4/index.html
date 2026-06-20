@@ -53,7 +53,7 @@
   .bg-pucks::before,.bg-pucks::after{content:"";position:absolute;border-radius:50%;filter:blur(95px);opacity:.5}
   .bg-pucks::before{width:420px;height:420px;background:var(--red);top:-120px;left:-130px}
   .bg-pucks::after{width:460px;height:460px;background:var(--yellow);bottom:-160px;right:-150px}
-  .puck-wrap{position:absolute;will-change:transform;perspective:700px;transition:transform .5s cubic-bezier(.2,.8,.3,1)}
+  .puck-wrap{position:absolute;left:0;top:0;will-change:transform;perspective:700px}
   .bg-puck{position:relative;width:100%;height:100%;border-radius:50%;animation:floaty linear infinite;
     box-shadow:inset 0 -7px 12px rgba(0,0,0,.45), inset 0 6px 10px rgba(255,255,255,.45), 0 8px 16px rgba(0,0,0,.3)}
   .bg-puck::after{content:"";position:absolute;inset:27%;border-radius:50%;
@@ -61,11 +61,11 @@
   .bg-puck.red{background:radial-gradient(circle at 38% 32%,var(--red-hi),var(--red) 60%,var(--red-lo))}
   .bg-puck.yellow{background:radial-gradient(circle at 38% 32%,var(--yellow-hi),var(--yellow) 60%,var(--yellow-lo))}
   @keyframes floaty{
-    0%{transform:translateY(0) rotateX(0) rotateY(0)}
-    25%{transform:translateY(-12px) rotateX(14deg) rotateY(-12deg)}
-    50%{transform:translateY(-22px) rotateX(0) rotateY(12deg)}
-    75%{transform:translateY(-10px) rotateX(-12deg) rotateY(7deg)}
-    100%{transform:translateY(0) rotateX(0) rotateY(0)}}
+    0%{transform:rotateX(0) rotateY(0)}
+    25%{transform:rotateX(16deg) rotateY(-14deg)}
+    50%{transform:rotateX(0) rotateY(14deg)}
+    75%{transform:rotateX(-14deg) rotateY(8deg)}
+    100%{transform:rotateX(0) rotateY(0)}}
   /* keep interactive content above the art */
   .logo,.tagline,#lobby,#game,.footer{position:relative;z-index:1}
 
@@ -784,59 +784,96 @@ $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pa
          $('tagline').textContent='enter your name to join'; }
 })();
 
-// drifting game-piece pucks (red & yellow) — parallax via mouse (desktop) or tilt (mobile)
+// free-floating game-piece pucks (red & yellow): bounce off edges + collide with each other
 (function(){
   const box=$('bgPucks'); if(!box) return;
   const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const touch=window.matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
   if(touch) document.body.classList.add('is-touch');
-  // older-device fallback: fewer pucks on low-memory / low-core machines
+  // older-device fallback: fewer pucks on low-memory / low-core / touch devices
   const lowEnd=(navigator.deviceMemory && navigator.deviceMemory<=4) || (navigator.hardwareConcurrency && navigator.hardwareConcurrency<=4);
-  const COUNT=lowEnd?7:12;
-  const wraps=[];
+  const COUNT = lowEnd?6 : (touch?8:11);
+  const P=[];
   for(let i=0;i<COUNT;i++){
     const w=document.createElement('div'); w.className='puck-wrap';
     const pk=document.createElement('div'); pk.className='bg-puck '+(i%2?'yellow':'red');
-    const s=34+Math.random()*68;
+    const s=Math.round(36+Math.random()*62);
     w.style.width=s+'px'; w.style.height=s+'px';
-    w.style.left=(Math.random()*96)+'vw'; w.style.top=(Math.random()*90)+'vh';
     if(reduce){ pk.style.animation='none'; }
-    else { pk.style.animationDuration=(9+Math.random()*11)+'s'; pk.style.animationDelay=(-Math.random()*12)+'s'; }
-    w._depth=0.25+Math.random()*0.95;
-    w.appendChild(pk); box.appendChild(w); wraps.push(w);
+    else { pk.style.animationDuration=(7+Math.random()*8)+'s'; pk.style.animationDelay=(-Math.random()*10)+'s'; }
+    w.appendChild(pk); box.appendChild(w);
+    const W=innerWidth, H=innerHeight, ang=Math.random()*Math.PI*2, sp=40+Math.random()*55;
+    P.push({el:w, size:s, r:s/2, x:Math.random()*Math.max(1,W-s), y:Math.random()*Math.max(1,H-s),
+            vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp});
   }
-  // drop out the bottom on game over; drift back up on rematch
-  let locked=false;
-  function drop(){ locked=true; wraps.forEach(w=>{ w.firstChild.style.animationPlayState='paused';
-    w.style.transition='transform '+(0.7+Math.random()*0.5).toFixed(2)+'s cubic-bezier(.45,.05,.75,.65) '+(Math.random()*0.3).toFixed(2)+'s';
-    w.style.transform='translateY(125vh) rotate('+(Math.random()*140-70|0)+'deg)'; }); }
-  function rise(){ wraps.forEach(w=>{
-    w.style.transition='transform '+(1.5+Math.random()*0.9).toFixed(2)+'s cubic-bezier(.2,.7,.3,1) '+(Math.random()*0.5).toFixed(2)+'s';
-    w.style.transform=''; });
-    setTimeout(()=>{ locked=false; wraps.forEach(w=>{ w.style.transition=''; w.firstChild.style.animationPlayState=''; }); }, 2700); }
+  const draw=()=>{ for(const p of P) p.el.style.transform=`translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0)`; };
+  draw();
+
+  let mode='float', gx=0, gy=0, running=false, raf=0, last=0;
+  const MAXV=190;
+  function step(now){
+    if(!running) return;
+    let dt=(now-last)/1000; last=now; if(!(dt>0)) dt=0.016; if(dt>0.05) dt=0.05;
+    const W=innerWidth, H=innerHeight;
+    for(const p of P){
+      if(mode==='drop'){ p.vy += 1500*dt; } else { p.vx += gx*dt; p.vy += gy*dt; }
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      if(p.x<0){ p.x=0; p.vx=Math.abs(p.vx); } else if(p.x>W-p.size){ p.x=W-p.size; p.vx=-Math.abs(p.vx); }
+      if(mode!=='drop'){
+        if(p.y<0){ p.y=0; p.vy=Math.abs(p.vy); } else if(p.y>H-p.size){ p.y=H-p.size; p.vy=-Math.abs(p.vy); }
+        const sp=Math.hypot(p.vx,p.vy); if(sp>MAXV){ p.vx*=MAXV/sp; p.vy*=MAXV/sp; }
+      }
+    }
+    if(mode!=='drop'){
+      for(let i=0;i<P.length;i++) for(let j=i+1;j<P.length;j++){
+        const a=P[i], b=P[j], dx=(b.x+b.r)-(a.x+a.r), dy=(b.y+b.r)-(a.y+a.r);
+        const dist=Math.hypot(dx,dy), mind=a.r+b.r;
+        if(dist>0 && dist<mind){
+          const nx=dx/dist, ny=dy/dist, ov=(mind-dist)/2;
+          a.x-=nx*ov; a.y-=ny*ov; b.x+=nx*ov; b.y+=ny*ov;
+          const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;
+          if(vn<0){ a.vx+=vn*nx; a.vy+=vn*ny; b.vx-=vn*nx; b.vy-=vn*ny; }   // elastic, equal mass
+        }
+      }
+    }
+    let gone=true;
+    for(const p of P){ p.el.style.transform=`translate3d(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px,0)`; if(p.y<H+20) gone=false; }
+    if(mode==='drop' && gone){ running=false; return; }
+    raf=requestAnimationFrame(step);
+  }
+  function start(){ if(running||reduce) return; running=true; last=performance.now(); raf=requestAnimationFrame(step); }
+  function stop(){ running=false; if(raf) cancelAnimationFrame(raf); raf=0; }
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) stop(); else if(mode==='float') start(); });
+
+  // game over -> fall out the bottom; rematch -> respawn above and float back in
+  function drop(){ mode='drop'; start(); }
+  function rise(){ const W=innerWidth, H=innerHeight;
+    for(const p of P){ p.x=Math.random()*Math.max(1,W-p.size); p.y=-p.size-Math.random()*H*0.5;
+      const ang=Math.random()*Math.PI*2, sp=40+Math.random()*55; p.vx=Math.cos(ang)*sp; p.vy=Math.abs(Math.sin(ang)*sp)+30; }
+    mode='float'; start();
+  }
   puckFX={ drop: reduce?function(){}:drop, rise: reduce?function(){}:rise };
   if(reduce) return;
-  // parallax: mouse (desktop) or device tilt (mobile)
-  let raf=0,nx=0,ny=0;
-  function apply(){ raf=0; if(locked) return; wraps.forEach(w=>{ const d=w._depth;
-    w.style.transform=`translate(${(-nx*d*46).toFixed(1)}px, ${(-ny*d*46).toFixed(1)}px)`; }); }
-  function set(x,y){ if(locked) return; nx=Math.max(-1,Math.min(1,x)); ny=Math.max(-1,Math.min(1,y)); if(!raf) raf=requestAnimationFrame(apply); }
-  window.addEventListener('mousemove',e=>set(e.clientX/innerWidth-0.5, e.clientY/innerHeight-0.5), {passive:true});
+  start();
+
+  // mobile: tilt the phone => gravity direction (reuses the gyro permission flow)
   if(touch){
     let attached=false;
-    function onTilt(e){ const g=e.gamma, b=e.beta; if(g==null && b==null) return; set((g||0)/35, ((b||0)-45)/35); }
+    function onTilt(e){ const g=e.gamma, b=e.beta; if(g==null && b==null) return;
+      const tg=g||0, tb=(b||0)-45;
+      gx = Math.abs(tg)<4 ? 0 : Math.max(-1,Math.min(1,tg/40))*190;
+      gy = Math.abs(tb)<6 ? 0 : Math.max(-1,Math.min(1,tb/40))*190; }
     function attach(){ if(attached) return; attached=true;
       window.addEventListener('deviceorientation', onTilt, {passive:true});
       window.addEventListener('deviceorientationabsolute', onTilt, {passive:true});
-      window.removeEventListener('touchend', grant);
-      toast('Tilt enabled'); }
+      window.removeEventListener('touchend', grant); toast('Tilt enabled'); }
     function grant(){
       if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
         DeviceOrientationEvent.requestPermission().then(s=>{ s==='granted' ? attach() : toast('Allow motion access to use tilt'); }).catch(()=>{});
       } else attach();
       try{ if(screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(()=>{}); }catch(_){}
     }
-    window.addEventListener('touchend', grant, {passive:true});  // retries each tap until granted
+    window.addEventListener('touchend', grant, {passive:true});
   }
 })();
 </script>
