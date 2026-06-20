@@ -800,7 +800,7 @@ $('leaveBtn').onclick=()=>{ if(roomRef) roomRef.off(); location.href=location.pa
   for(let i=0;i<COUNT;i++){
     const w=document.createElement('div'); w.className='puck-wrap';
     const pk=document.createElement('div'); pk.className='bg-puck '+(i%2?'yellow':'red');
-    const s=Math.round(36+Math.random()*62);
+    const s=60;
     w.style.width=s+'px'; w.style.height=s+'px';
     if(reduce){ pk.style.animation='none'; }
     else { pk.style.animationDuration=(7+Math.random()*8)+'s'; pk.style.animationDelay=(-Math.random()*10)+'s'; }
