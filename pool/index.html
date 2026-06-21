@@ -32,21 +32,51 @@
     color:#06121f;background:linear-gradient(180deg,#56f0d4,var(--accent));box-shadow:0 4px 0 #129e85}
   button:active{transform:translateY(3px);box-shadow:none}
   .hint{color:var(--muted);font-size:12px;text-align:center;margin-top:10px;max-width:540px}
+  .overlay{position:fixed;inset:0;background:rgba(4,8,20,.82);display:flex;align-items:center;justify-content:center;z-index:20;padding:20px;backdrop-filter:blur(3px)}
+  .overlay.hidden{display:none}
+  .modal{background:var(--panel);border:1.5px solid var(--line);border-radius:18px;padding:24px 22px;width:100%;max-width:360px;text-align:center;box-shadow:0 18px 60px rgba(0,0,0,.55)}
+  .modal h2{font-family:'Fredoka',sans-serif;margin:0 0 4px;font-size:24px}
+  .modal h2 .a{color:var(--accent)}
+  .modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  .modal input{width:100%;background:#0a1126;border:1.5px solid var(--line);border-radius:10px;color:var(--txt);padding:11px 12px;font-size:15px;margin-bottom:10px;font-family:inherit;text-align:center}
+  .modal .row{display:flex;gap:8px}
+  .modal .or{color:var(--muted);font-size:11px;margin:13px 0;letter-spacing:2px;text-transform:uppercase}
+  .btn2{font-family:'Fredoka',sans-serif;cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:600;padding:12px 14px;color:#06121f;background:linear-gradient(180deg,#56f0d4,var(--accent));box-shadow:0 4px 0 #129e85;width:100%}
+  .btn2.ghost{background:#0a1126;color:var(--txt);border:1.5px solid var(--line);box-shadow:none}
+  .btn2.j{width:auto;padding-left:18px;padding-right:18px}
+  .btn2:active{transform:translateY(2px);box-shadow:none}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a1126;border:1.5px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
+  .toast.show{opacity:1}
+  .share{cursor:pointer;color:var(--accent);font-weight:700}
+  #inviteBtn{background:#0a1126;color:var(--accent);border:1.5px solid var(--line);box-shadow:none}
 </style>
 </head>
 <body>
   <a class="back" href="../">← 1v1 me bro</a>
+  <div class="overlay" id="lobby"><div class="modal">
+    <h2>8-<span class="a">BALL</span> POOL</h2>
+    <p id="lobbyTag">Play a friend online, or pass &amp; play on one device.</p>
+    <input id="nameInput" placeholder="Your name" maxlength="16"/>
+    <button class="btn2" id="createBtn">Create online game</button>
+    <div class="or">— or join a code —</div>
+    <div class="row"><input id="joinCode" placeholder="CODE" maxlength="4"/><button class="btn2 j" id="joinBtn">Join</button></div>
+    <div class="or">— or —</div>
+    <button class="btn2 ghost" id="localBtn">Pass &amp; play (local)</button>
+  </div></div>
+  <div class="toast" id="toast"></div>
   <div class="logo">8-<span class="a">BALL</span> POOL</div>
-  <div class="tag">phase 1 · local hotseat</div>
+  <div class="tag" id="tag">online 1v1 · pass &amp; play</div>
   <div class="hud">
     <div class="pscore active" id="ps1"><span class="d" style="background:#fff"></span><span id="nm1">Player 1</span><span class="n" id="sc1">0</span></div>
     <div class="pscore" id="ps2"><span class="d" style="background:#ffce1f"></span><span id="nm2">Player 2</span><span class="n" id="sc2">0</span></div>
   </div>
   <div class="status" id="status">Player 1 — pull back from the cue ball &amp; release to break</div>
   <div class="wrap"><canvas id="cv" width="1120" height="620"></canvas></div>
-  <div class="ctrls"><button id="rackBtn">Rack again</button></div>
+  <div class="ctrls"><button id="rackBtn">Rack again</button><button id="inviteBtn" style="display:none">Invite link</button></div>
   <div class="hint">Pull back behind the white ball (slingshot) and release — you can drag past the table edge for full power. Pot a ball from your group to keep your turn. Sink the 8 only after clearing your group.</div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const W=1120, H=620, RAIL=62, BR=13;   // thicker rail leaves room for the recessed pockets
@@ -146,20 +176,31 @@ function stepAll(dt){
 }
 function onPot(b){ if(b.n===0) scratch=true; else pottedBalls.push(b.n); }
 function loop(t){ if(!lastT)lastT=t; let dt=t-lastT; lastT=t; if(dt>40)dt=40; stepAll(dt); draw();
-  if(moving()) raf=requestAnimationFrame(loop); else { raf=0; lastT=0; endShot(); } }
+  if(moving()) raf=requestAnimationFrame(loop); else { raf=0; lastT=0; afterShot(); } }
+function afterShot(){ if(mode==='online') return endShotOnline(); endShot(); }
 function shoot(dir,power){ const cb=cueBall(); if(!cb)return; cb.vx=dir.x*power*MAXSPEED; cb.vy=dir.y*power*MAXSPEED;
   phase='sim'; pottedBalls=[]; scratch=false; if(!raf) raf=requestAnimationFrame(loop); }
 
-function endShot(){
+// Pure-ish resolution of a finished shot. Reads pottedBalls/scratch + current cur/group; applies the
+// cue respawn on a scratch; returns the new turn/groups/scores/winner. Shared by local + online.
+function computeShotOutcome(){
   const potted=pottedBalls.slice();
-  if(potted.includes(8)){
-    const cleared = group[cur] && remaining(cur)===0;
-    gameOver(cleared && !scratch ? cur : other()); return;
-  }
-  if(!group[cur] && !scratch){ const f=potted.find(n=>n!==8); if(f!=null){ group[cur]=groupOf(f); group[other()]=group[cur]==='solid'?'stripe':'solid'; } }
-  scores[cur]+=potted.filter(n=>n!==8 && (!group[cur]||groupOf(n)===group[cur])).length;
-  let cont=false; if(!scratch){ cont = group[cur] ? potted.some(n=>groupOf(n)===group[cur]) : potted.length>0; }
-  if(scratch){ respawnCue(); switchPlayer(); } else if(!cont){ switchPlayer(); }
+  let g1=group[1], g2=group[2], s1=scores[1], s2=scores[2], winner=0, nextCur=cur;
+  if(potted.includes(8)){ const cleared=group[cur]&&remaining(cur)===0; winner=(cleared&&!scratch)?cur:other();
+    return {winner, nextCur:cur, g1,g2,s1,s2}; }
+  if(!group[cur] && !scratch){ const f=potted.find(n=>n!==8); if(f!=null){ const gg=groupOf(f);
+    if(cur===1){ g1=gg; g2=gg==='solid'?'stripe':'solid'; } else { g2=gg; g1=gg==='solid'?'stripe':'solid'; } } }
+  const myG = cur===1?g1:g2;
+  const gained = potted.filter(n=>n!==8 && (!myG||groupOf(n)===myG)).length;
+  if(cur===1) s1+=gained; else s2+=gained;
+  let cont=false; if(!scratch){ cont = myG ? potted.some(n=>groupOf(n)===myG) : potted.length>0; }
+  if(scratch){ respawnCue(); nextCur=other(); } else if(!cont){ nextCur=other(); }
+  return {winner, nextCur, g1,g2,s1,s2};
+}
+function endShot(){
+  const o=computeShotOutcome();
+  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur;
+  if(o.winner){ gameOver(o.winner); return; }
   phase='aim'; updateHUD(); setStatus(turnMsg()); draw();
 }
 function gameOver(winner){ if(raf){cancelAnimationFrame(raf);raf=0;} phase='over';
@@ -171,12 +212,16 @@ function turnMsg(){ const g=group[cur]?' ('+(group[cur]==='solid'?'solids':'stri
 
 /* ---------- aiming (tracks anywhere in the window) ---------- */
 function toLocal(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H}; }
-function down(e){ if(phase!=='aim'||moving())return; aiming=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} ptr=toLocal(e); draw(); }
+function canAim(){ if(phase!=='aim'||moving())return false;
+  if(mode==='online'){ if(!state||!state.p2||state.winner||myRole===0||cur!==myRole) return false; }
+  return true; }
+function down(e){ if(!canAim())return; aiming=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} ptr=toLocal(e); draw(); }
 function move(e){ if(!aiming)return; ptr=toLocal(e); draw(); }
 function up(){ if(!aiming)return; aiming=false; const cb=cueBall(); if(!cb){draw();return;}
   const dx=cb.x-ptr.x, dy=cb.y-ptr.y, dist=Math.hypot(dx,dy);
   if(dist<14){ draw(); return; }
-  shoot({x:dx/dist,y:dy/dist}, Math.min(dist,MAXPULL)/MAXPULL); }
+  const dir={x:dx/dist,y:dy/dist}, power=Math.min(dist,MAXPULL)/MAXPULL;
+  if(mode==='online') sendShot(dir,power); else shoot(dir,power); }
 cv.addEventListener('pointerdown',down);
 window.addEventListener('pointermove',move);   // window-level so off-table drag still works
 window.addEventListener('pointerup',up);
@@ -264,14 +309,106 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w
 function updateHUD(){
   document.getElementById('sc1').textContent=group[1]?(remaining(1)+' left'):scores[1];
   document.getElementById('sc2').textContent=group[2]?(remaining(2)+' left'):scores[2];
-  document.getElementById('nm1').textContent='Player 1'+(group[1]?' · '+(group[1]==='solid'?'Solids':'Stripes'):'');
-  document.getElementById('nm2').textContent='Player 2'+(group[2]?' · '+(group[2]==='solid'?'Solids':'Stripes'):'');
+  const n1=(mode==='online'&&state&&state.p1)?state.p1.name:'Player 1';
+  const n2=(mode==='online'&&state)?(state.p2?state.p2.name:'waiting…'):'Player 2';
+  document.getElementById('nm1').textContent=n1+(group[1]?' · '+(group[1]==='solid'?'Solids':'Stripes'):'');
+  document.getElementById('nm2').textContent=n2+(group[2]?' · '+(group[2]==='solid'?'Solids':'Stripes'):'');
   document.getElementById('ps1').classList.toggle('active',cur===1&&phase!=='over');
   document.getElementById('ps2').classList.toggle('active',cur===2&&phase!=='over');
 }
 function setStatus(h){ document.getElementById('status').innerHTML=h; }
-document.getElementById('rackBtn').onclick=rack;
-rack();
+
+/* ================= Phase 2 — online 1v1 (Firebase, shot-params + settled-snapshot) ================= */
+const firebaseConfig = { apiKey:'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4', authDomain:'map-v2-6b2e4.firebaseapp.com',
+  databaseURL:'https://map-v2-6b2e4-default-rtdb.firebaseio.com', projectId:'map-v2-6b2e4',
+  storageBucket:'map-v2-6b2e4.appspot.com', messagingSenderId:'216550808002', appId:'1:216550808002:web:3443680b0ebfebbae09e5b' };
+let mode='local', db=null, roomCode=null, roomRef=null, myRole=0, state=null, localSeq=0, lastShotBy=0;
+try{ firebase.initializeApp(firebaseConfig); db=firebase.database(); }catch(e){ console.warn(e); }
+let myId=localStorage.getItem('mb_id'); if(!myId){ myId=Math.random().toString(36).slice(2,10); localStorage.setItem('mb_id',myId); }
+const $=id=>document.getElementById(id);
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2200); }
+
+function serializeBalls(){ return balls.map(b=>({n:b.n,x:Math.round(b.x*10)/10,y:Math.round(b.y*10)/10,p:b.potted?1:0})); }
+function loadBalls(arr){ if(!arr)return; balls=arr.map(b=>({n:b.n,x:b.x,y:b.y,vx:0,vy:0,r:BR,potted:!!b.p})); }
+function oppName(){ const o=myRole===1?state.p2:state.p1; return (o&&o.name)||'Opponent'; }
+
+function createRoom(){
+  const name=($('nameInput').value.trim()||'Player 1').slice(0,16);
+  if(!db){ toast('Firebase unavailable'); return; }
+  roomCode=Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*31)]).join('');
+  rack();
+  db.ref('pool/'+roomCode).set({ p1:{id:myId,name}, p2:null, balls:serializeBalls(), turn:1, starter:1,
+    g1:'',g2:'', p1score:0,p2score:0, winner:0, broke:false, seq:0, shot:null, rematch:null, createdAt:Date.now() })
+    .then(enterOnline).catch(e=>{ console.error(e); toast('DB write blocked — open Firebase rules for "pool"'); });
+}
+function joinRoom(code){
+  code=(code||'').toUpperCase().trim(); if(!db){ toast('Firebase unavailable'); return; }
+  if(code.length<4){ toast('Enter a 4-letter code'); return; }
+  const name=($('nameInput').value.trim()||'Player 2').slice(0,16); const ref=db.ref('pool/'+code);
+  ref.get().then(s=>{ if(!s.exists()){ toast('Game not found'); return; } const r=s.val(); roomCode=code;
+    if(r.p1&&r.p1.id===myId) return enterOnline();
+    if(r.p2&&r.p2.id===myId) return enterOnline();
+    if(!r.p2) ref.child('p2').set({id:myId,name}).then(enterOnline);
+    else toast('Game is full'); }).catch(e=>{ console.error(e); toast('Join failed'); });
+}
+function enterOnline(){
+  mode='online'; $('lobby').classList.add('hidden'); $('tag').textContent='online 1v1';
+  $('rackBtn').textContent='Rematch'; $('inviteBtn').style.display='';
+  roomRef=db.ref('pool/'+roomCode);
+  roomRef.on('value',s=>{ if(!s.exists())return; state=s.val();
+    myRole = state.p1&&state.p1.id===myId?1 : (state.p2&&state.p2.id===myId?2:0);
+    cur=state.turn||1; group={1:state.g1||null,2:state.g2||null}; scores={1:state.p1score||0,2:state.p2score||0};
+    if(state.seq>localSeq && state.shot){            // a new shot arrived — replay it from the synced positions
+      localSeq=state.seq; lastShotBy=state.shot.by;
+      loadBalls(state.balls); pottedBalls=[]; scratch=false; phase='sim';
+      shoot({x:state.shot.ax,y:state.shot.ay}, state.shot.power);
+    } else if(!raf){                                  // idle — snap to the authoritative settled state
+      localSeq=Math.max(localSeq,state.seq||0);
+      loadBalls(state.balls); pottedBalls=[]; scratch=false; phase=state.winner?'over':'aim';
+    }
+    updateHUD(); renderStatus(); draw();
+  });
+}
+function sendShot(dir,power){ if(!roomRef)return; phase='sim';
+  roomRef.update({ shot:{by:myRole,ax:dir.x,ay:dir.y,power}, seq:(state.seq||0)+1 }); }
+function endShotOnline(){
+  const o=computeShotOutcome();
+  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur; phase=o.winner?'over':'aim';
+  if(myRole===lastShotBy && roomRef){            // shooter writes the authoritative settled snapshot
+    roomRef.update({ balls:serializeBalls(), turn:o.nextCur, g1:o.g1||'', g2:o.g2||'',
+      p1score:o.s1, p2score:o.s2, winner:o.winner||0, broke:true, shot:null });
+  }
+  updateHUD(); renderStatus(); draw();
+}
+function renderStatus(){ if(mode!=='online'||!state) return; let s;
+  if(!state.p2){ s=`Waiting for a friend · code <span class="share">${roomCode}</span> — tap “Invite link”`; }
+  else if(state.winner){ const win=state.winner===myRole?'You win! 🏆':'You lose'; const rm=state.rematch;
+    if(rm&&rm.by&&rm.by!==myRole) s=`<b>${oppName()} wants a rematch</b> — press Rematch to accept`;
+    else if(rm&&rm.by===myRole) s=`<b>${win}</b> — rematch sent…`;
+    else s=`<b>${win}</b> — press Rematch`; }
+  else { const g=group[cur]?' ('+(group[cur]==='solid'?'solids':'stripes')+')':'';
+    s = cur===myRole ? (state.broke?`<b>Your turn${g}</b> — pull back &amp; release`:'<b>Your break!</b> — pull back &amp; release')
+                     : `<b>${oppName()}’s turn${g}…</b>`; }
+  setStatus(s);
+}
+function requestRematch(){ if(!roomRef||!state)return;
+  if(state.rematch&&state.rematch.by&&state.rematch.by!==myRole) return acceptRematch();
+  roomRef.update({rematch:{by:myRole}}); toast('Rematch requested'); }
+function acceptRematch(){ const ns=(state.starter||1)===1?2:1; rack();
+  roomRef.update({ balls:serializeBalls(), turn:ns, starter:ns, g1:'',g2:'', p1score:0,p2score:0, winner:0, broke:false, shot:null, rematch:null }); }
+
+/* wiring */
+$('createBtn').onclick=createRoom;
+$('joinBtn').onclick=()=>joinRoom($('joinCode').value);
+$('localBtn').onclick=()=>{ mode='local'; $('lobby').classList.add('hidden'); $('tag').textContent='pass & play (local)'; rack(); };
+$('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ $('joinCode').value?joinRoom($('joinCode').value):createRoom(); }});
+$('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom($('joinCode').value); });
+$('rackBtn').onclick=()=>{ if(mode==='online') requestRematch(); else rack(); };
+$('inviteBtn').onclick=()=>{ const url=location.origin+location.pathname+'?room='+roomCode;
+  navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url)); };
+(function(){ const p=new URLSearchParams(location.search).get('room');
+  if(p){ $('joinCode').value=p.toUpperCase(); $('createBtn').style.display='none'; $('lobbyTag').textContent='Enter your name to join the game'; } })();
+rack();   // draw the table behind the lobby
 </script>
 </body>
 </html>
