@@ -49,9 +49,41 @@
 
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-const W=1120, H=620, RAIL=52, BR=13, PR=27;
+const W=1120, H=620, RAIL=62, BR=13;   // thicker rail leaves room for the recessed pockets
 const L=RAIL, R=W-RAIL, T=RAIL, B=H-RAIL, MID=(T+B)/2, MIDX=(L+R)/2;
-const POCKETS=[[L,T],[MIDX,T],[R,T],[L,B],[MIDX,B],[R,B]];
+// ---- pocket & cushion geometry: real table jaws with a recessed hole + throat ("path") ----
+// Mouth = tip-to-tip of the cushion noses. The cushion FACINGS angle back from each tip to form a
+// throat, and the hole is RECESSED at the back of that throat so there's a path for the ball to roll in.
+const BW=2*BR;                                       // one ball width
+const CMOUTH=2.00*BW, SMOUTH=2.53*BW;                // corner ~52; side mouth ~66 so the 70° facings frame the hole
+const CM=CMOUTH/Math.SQRT2, SM=SMOUTH/2;             // tip setback (corner along rail / side half-width)
+const C_OFF=40*Math.PI/180, S_OFF=20*Math.PI/180;    // facing angle: corner 40° off rail; side jaws cut at 70° off the rail (20° off perpendicular)
+const Cc=Math.cos(C_OFF), Cs=Math.sin(C_OFF), Sc=Math.cos(S_OFF), Ss=Math.sin(S_OFF);
+const FL_C=40, FL_S=32;                              // facing (jaw) lengths back to the throat
+const TH_S=30;                                       // side hole recess (deeper, set back into the rail)
+const HR_C=22, HR_S=22, CAPC=27, CAPS=26, CW=18;     // hole radii / capture radii / cushion band width
+// build the six pockets: tips (on the nose), facing far-ends, recessed hole, capture radius
+const POCKETS=[];
+for(const [cx,cy,ix,iy] of [[L,T,1,1],[R,T,-1,1],[L,B,1,-1],[R,B,-1,-1]]){
+  const tA=[cx+ix*CM, cy], tB=[cx, cy+iy*CM];
+  const fA=[tA[0]-ix*Cc*FL_C, tA[1]-iy*Cs*FL_C], fB=[tB[0]-ix*Cs*FL_C, tB[1]-iy*Cc*FL_C];
+  POCKETS.push({tips:[tA,tB], fac:[fA,fB], hole:[cx-ix*5, cy-iy*5], hr:HR_C, side:false, capr:CAPC});
+}
+for(const sy of [1,-1]){
+  const ny=sy>0?T:B, tA=[MIDX-SM,ny], tB=[MIDX+SM,ny];
+  // facings CONVERGE toward the recessed hole (wide mouth faces the table, narrowing into the pocket)
+  const fA=[tA[0]+Ss*FL_S, ny-sy*Sc*FL_S], fB=[tB[0]-Ss*FL_S, ny-sy*Sc*FL_S];
+  POCKETS.push({tips:[tA,tB], fac:[fA,fB], hole:[MIDX, ny-sy*TH_S], hr:HR_S, side:true, ny, capr:CAPS});
+}
+// collision noses: straight rail pieces + the angled jaw facings (ball radius BR bounces off these)
+const CUSH=[];
+const seg=(x1,y1,x2,y2)=>CUSH.push({x1,y1,x2,y2});
+seg(L+CM,T, MIDX-SM,T); seg(MIDX+SM,T, R-CM,T);
+seg(L+CM,B, MIDX-SM,B); seg(MIDX+SM,B, R-CM,B);
+seg(L,T+CM, L,B-CM); seg(R,T+CM, R,B-CM);
+for(const p of POCKETS){ seg(p.tips[0][0],p.tips[0][1], p.fac[0][0],p.fac[0][1]); seg(p.tips[1][0],p.tips[1][1], p.fac[1][0],p.fac[1][1]); }
+// felt outline (nose polygon): corners chamfered tip-to-tip, sides straight along the rail
+const FELT=[ [L+CM,T],[MIDX-SM,T],[MIDX+SM,T],[R-CM,T],[R,T+CM],[R,B-CM],[R-CM,B],[MIDX+SM,B],[MIDX-SM,B],[L+CM,B],[L,B-CM],[L,T+CM] ];
 const MAXPULL=320, MAXSPEED=1750, REST=0.92, FRICTION=0.62, STOP=7;
 const SOLID={1:'#f4c430',2:'#1c5fd6',3:'#e02434',4:'#7a3cc0',5:'#ef7d1a',6:'#1f9e54',7:'#8a2433'};
 function ballColor(n){ return n===8?'#15151a':SOLID[n>8?n-8:n]; }
@@ -85,10 +117,21 @@ function stepAll(dt){
   for(let s=0;s<steps;s++){
     for(const b of balls){ if(b.potted)continue;
       b.x+=b.vx*h; b.y+=b.vy*h;
-      for(const [px,py] of POCKETS){ if(Math.hypot(b.x-px,b.y-py)<PR){ b.potted=true; onPot(b); break; } }
+      // pocket capture: ball is potted once its centre reaches the throat of a pocket mouth.
+      // Side pockets also require the centre to cross the felt edge, so a ball merely rolling
+      // along the rail (no inward velocity) can't fall in the middle pocket.
+      for(const p of POCKETS){ const dx=b.x-p.hole[0], dy=b.y-p.hole[1];
+        if(p.side){ if((p.ny<MID?b.y<=T:b.y>=B) && Math.hypot(dx,dy)<p.capr){ b.potted=true; onPot(b); break; } }
+        else if(Math.hypot(dx,dy)<p.capr){ b.potted=true; onPot(b); break; } }
       if(b.potted)continue;
-      if(b.x<L+BR){b.x=L+BR;b.vx=Math.abs(b.vx)*REST;}else if(b.x>R-BR){b.x=R-BR;b.vx=-Math.abs(b.vx)*REST;}
-      if(b.y<T+BR){b.y=T+BR;b.vy=Math.abs(b.vy)*REST;}else if(b.y>B-BR){b.y=B-BR;b.vy=-Math.abs(b.vy)*REST;}
+      // cushions — bounce off every nose segment (straight rails + angled jaw facets)
+      for(const sg of CUSH){
+        const ex=sg.x2-sg.x1, ey=sg.y2-sg.y1, len2=ex*ex+ey*ey;
+        let t=len2?((b.x-sg.x1)*ex+(b.y-sg.y1)*ey)/len2:0; t=t<0?0:t>1?1:t;
+        const cx=sg.x1+ex*t, cy=sg.y1+ey*t, dx=b.x-cx, dy=b.y-cy, d=Math.hypot(dx,dy);
+        if(d>0&&d<BR){ const nx=dx/d, ny=dy/d; b.x=cx+nx*BR; b.y=cy+ny*BR;
+          const vn=b.vx*nx+b.vy*ny; if(vn<0){ b.vx-=(1+REST)*vn*nx; b.vy-=(1+REST)*vn*ny; } }
+      }
     }
     for(let i=0;i<balls.length;i++){ const a=balls[i]; if(a.potted)continue;
       for(let j=i+1;j<balls.length;j++){ const c=balls[j]; if(c.potted)continue;
@@ -153,24 +196,38 @@ function aimGuide(cb,dir){
 
 /* ---------- render ---------- */
 function draw(){
-  // dark frame
-  roundRect(0,0,W,H,26); ctx.fillStyle='#0b1124'; ctx.fill();
-  // red cushion border, then blue felt inside (red shows as the cushions)
-  roundRect(RAIL-26,RAIL-26,W-2*(RAIL-26),H-2*(RAIL-26),20); ctx.fillStyle='#a32630'; ctx.fill();
-  roundRect(RAIL-20,RAIL-20,W-2*(RAIL-20),H-2*(RAIL-20),16); ctx.fillStyle='#c9333d'; ctx.fill();
+  const poly=(pts)=>{ ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath(); };
+  // outer shadow
+  roundRect(0,0,W,H,30); ctx.fillStyle='#0c0f15'; ctx.fill();
+  // wooden rail (maroon)
+  const rg=ctx.createLinearGradient(0,0,0,H);
+  rg.addColorStop(0,'#a8453c'); rg.addColorStop(.5,'#8a2f28'); rg.addColorStop(1,'#6c211c');
+  roundRect(7,7,W-14,H-14,24); ctx.fillStyle=rg; ctx.fill();
+  // blue cushion band (covers the playing area + cushion; the maroon shows through as the rail border)
+  roundRect(L-CW,T-CW,(R-L)+2*CW,(B-T)+2*CW,16); ctx.fillStyle='#3a7fb8'; ctx.fill();
+  // pocket throats — a recessed shelf channel from the mouth back to the hole (the ball's "path")
+  ctx.fillStyle='#1b5482';
+  for(const p of POCKETS){ poly([p.tips[0],p.fac[0],p.fac[1],p.tips[1]]); ctx.fill(); }
+  // blue felt playing surface (nose polygon: chamfered corners, straight sides)
   const fg=ctx.createRadialGradient(MIDX,MID,80,MIDX,MID,W*0.62);
-  fg.addColorStop(0,'#2f80c6'); fg.addColorStop(1,'#1c5f9c');
-  roundRect(L,T,R-L,B-T,8); ctx.fillStyle=fg; ctx.fill();
-  // head string (decorative line)
-  ctx.strokeStyle='rgba(255,255,255,.12)'; ctx.lineWidth=2; ctx.beginPath();
-  ctx.moveTo(L+(R-L)*0.25,T); ctx.lineTo(L+(R-L)*0.25,B); ctx.stroke();
-  // pockets — sit at the felt corners/edge-mids (cut into the cushion line)
-  for(const [px,py] of POCKETS){ ctx.beginPath(); ctx.arc(px,py,PR,0,7); ctx.fillStyle='#05101f'; ctx.fill();
-    ctx.beginPath(); ctx.arc(px,py,PR,0,7); ctx.lineWidth=4; ctx.strokeStyle='#1a1410'; ctx.stroke(); }
-  // rail sight dots
-  ctx.fillStyle='rgba(255,255,255,.55)';
-  for(const fx of [0.25,0.5,0.75]){ dot(L+(R-L)*fx,T-(RAIL-20)/2); dot(L+(R-L)*fx,B+(RAIL-20)/2); }
-  for(const fy of [0.25,0.5,0.75]){ dot(L-(RAIL-20)/2,T+(B-T)*fy); dot(R+(RAIL-20)/2,T+(B-T)*fy); }
+  fg.addColorStop(0,'#2f86c9'); fg.addColorStop(1,'#1c5f96');
+  poly(FELT); ctx.fillStyle=fg; ctx.fill();
+  // head string (clipped to the felt)
+  ctx.save(); poly(FELT); ctx.clip();
+  ctx.strokeStyle='rgba(255,255,255,.10)'; ctx.lineWidth=2; ctx.beginPath();
+  ctx.moveTo(L+(R-L)*0.25,T); ctx.lineTo(L+(R-L)*0.25,B); ctx.stroke(); ctx.restore();
+  // cushion nose highlight along each straight rail (broken at the pockets)
+  ctx.strokeStyle='rgba(186,222,250,.55)'; ctx.lineWidth=2.5; ctx.lineCap='round';
+  const nose=(x1,y1,x2,y2)=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+  nose(L+CM,T,MIDX-SM,T); nose(MIDX+SM,T,R-CM,T); nose(L+CM,B,MIDX-SM,B); nose(MIDX+SM,B,R-CM,B);
+  nose(L,T+CM,L,B-CM); nose(R,T+CM,R,B-CM); ctx.lineCap='butt';
+  // recessed holes (dark) at the back of each throat
+  for(const p of POCKETS){ ctx.beginPath(); ctx.arc(p.hole[0],p.hole[1],p.hr,0,7);
+    ctx.fillStyle='#080b10'; ctx.fill(); ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.stroke(); }
+  // rail sight diamonds — long rails skip the centre (side pocket has none); short rails get the ¼ points
+  ctx.fillStyle='rgba(245,240,220,.8)'; const DO=34;
+  for(const fx of [0.125,0.25,0.375,0.625,0.75,0.875]){ dot(L+(R-L)*fx,T-DO); dot(L+(R-L)*fx,B+DO); }
+  for(const fy of [0.25,0.5,0.75]){ dot(L-DO,T+(B-T)*fy); dot(R+DO,T+(B-T)*fy); }
   // balls
   for(const b of balls){ if(!b.potted) drawBall(b); }
   // aim guide + cue
