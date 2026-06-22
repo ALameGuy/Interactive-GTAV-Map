@@ -39,12 +39,30 @@
   .modal h2 .a{color:var(--accent)}
   .modal p{color:var(--muted);font-size:13px;margin:0 0 16px}
   .modal input{width:100%;background:#0a1126;border:1.5px solid var(--line);border-radius:10px;color:var(--txt);padding:11px 12px;font-size:15px;margin-bottom:10px;font-family:inherit;text-align:center}
-  .modal .row{display:flex;gap:8px}
+  .modal .row{display:flex;gap:8px;align-items:stretch}
+  .modal .row input{margin-bottom:0}
   .modal .or{color:var(--muted);font-size:11px;margin:13px 0;letter-spacing:2px;text-transform:uppercase}
   .btn2{font-family:'Fredoka',sans-serif;cursor:pointer;border:none;border-radius:10px;font-size:14px;font-weight:600;padding:12px 14px;color:#06121f;background:linear-gradient(180deg,#56f0d4,var(--accent));box-shadow:0 4px 0 #129e85;width:100%}
   .btn2.ghost{background:#0a1126;color:var(--txt);border:1.5px solid var(--line);box-shadow:none}
-  .btn2.j{width:auto;padding-left:18px;padding-right:18px}
+  .btn2.j{width:auto;flex:0 0 auto;padding:0 22px;display:flex;align-items:center;justify-content:center}
   .btn2:active{transform:translateY(2px);box-shadow:none}
+  /* room chip (visible code + invite, kept out of the way) */
+  .roomchip{display:none;position:fixed;top:12px;right:14px;z-index:6;align-items:center;gap:8px;background:var(--panel);border:1.5px solid var(--line);border-radius:999px;padding:5px 6px 5px 12px;font-size:12px;font-weight:700;color:var(--muted)}
+  .roomchip b{color:var(--txt);letter-spacing:1px;font-family:'Fredoka',sans-serif}
+  .roomchip button{border:none;cursor:pointer;border-radius:999px;font-size:11px;font-weight:700;padding:5px 11px;color:#06121f;background:var(--accent);font-family:inherit}
+  /* potted-ball trays */
+  .trays{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:2px 0 8px;min-height:20px}
+  .tray{display:flex;align-items:center;gap:3px}
+  .tray .lbl{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;margin-right:3px;text-transform:uppercase}
+  .bico{width:15px;height:15px;border-radius:50%;position:relative;overflow:hidden;border:1px solid rgba(0,0,0,.35);box-shadow:0 1px 2px rgba(0,0,0,.3)}
+  .bico .band{position:absolute;left:0;right:0;top:4.5px;height:6px}
+  .bico.done{opacity:.3}
+  .bico.done::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;text-shadow:0 0 2px #000}
+  /* rotate-to-landscape gate (mobile) */
+  .rotate{display:none;position:fixed;inset:0;background:var(--bg);z-index:40;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:30px;color:var(--txt)}
+  .rotate svg{width:64px;height:64px;animation:tilt 1.6s ease-in-out infinite}
+  @keyframes tilt{0%,100%{transform:rotate(0)}50%{transform:rotate(-90deg)}}
+  @media (orientation:portrait) and (pointer:coarse){ body.ingame .rotate{display:flex} }
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a1126;border:1.5px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
   .toast.show{opacity:1}
   .share{cursor:pointer;color:var(--accent);font-weight:700}
@@ -53,6 +71,7 @@
 </head>
 <body>
   <a class="back" href="../">← 1v1 me bro</a>
+  <div class="roomchip" id="roomchip">room <b id="roomCodeLbl">····</b><button id="inviteBtn2">Invite</button></div>
   <div class="overlay" id="lobby"><div class="modal">
     <h2>8-<span class="a">BALL</span> POOL</h2>
     <p id="lobbyTag">Play a friend online, or pass &amp; play on one device.</p>
@@ -70,10 +89,15 @@
     <div class="pscore active" id="ps1"><span class="d" style="background:#fff"></span><span id="nm1">Player 1</span><span class="n" id="sc1">0</span></div>
     <div class="pscore" id="ps2"><span class="d" style="background:#ffce1f"></span><span id="nm2">Player 2</span><span class="n" id="sc2">0</span></div>
   </div>
+  <div class="trays" id="trays"></div>
   <div class="status" id="status">Player 1 — pull back from the cue ball &amp; release to break</div>
   <div class="wrap"><canvas id="cv" width="1120" height="620"></canvas></div>
-  <div class="ctrls"><button id="rackBtn">Rack again</button><button id="inviteBtn" style="display:none">Invite link</button></div>
-  <div class="hint">Pull back behind the white ball (slingshot) and release — you can drag past the table edge for full power. Pot a ball from your group to keep your turn. Sink the 8 only after clearing your group.</div>
+  <div class="ctrls"><button id="rackBtn">Rack again</button></div>
+  <div class="hint" id="hint">Pull back behind the white ball and release — the further you pull, the harder the strike. Pot a ball from your group to keep your turn; sink the 8 only after clearing your group.</div>
+  <div class="rotate" id="rotate">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#2fe3c0" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 3h8"/></svg>
+    <div><b>Rotate your device</b><br><span style="color:var(--muted);font-size:13px">8-ball plays in landscape</span></div>
+  </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
@@ -121,6 +145,7 @@ function groupOf(n){ return n===8?'eight':(n<8?'solid':'stripe'); }
 
 let balls=[], cur=1, scores={1:0,2:0}, group={1:null,2:null}, phase='aim', raf=0, lastT=0;
 let aiming=false, ptr={x:0,y:0}, pottedBalls=[], scratch=false;
+let firstContact=null, ballInHand=false, placing=false, strike=null;   // foul tracking, ball-in-hand, cue-strike anim
 const other=()=>cur===1?2:1;
 
 function rack(){
@@ -132,6 +157,7 @@ function rack(){
   const rest=[1,9,2,10,3,11,4,12,5,13,6,14,7,15]; let ri=0;
   for(const p of pos){ const n=p.center?8:rest[ri++]; balls.push({n,x:p.x,y:p.y,vx:0,vy:0,r:BR,potted:false}); }
   cur=1; scores={1:0,2:0}; group={1:null,2:null}; phase='aim'; pottedBalls=[]; scratch=false;
+  firstContact=null; ballInHand=false; placing=false; strike=null;
   updateHUD(); setStatus('<b>Player 1</b> — pull back from the cue ball &amp; release to break'); draw();
 }
 const cueBall=()=>balls.find(b=>b.n===0&&!b.potted);
@@ -167,6 +193,7 @@ function stepAll(dt){
       for(let j=i+1;j<balls.length;j++){ const c=balls[j]; if(c.potted)continue;
         let dx=c.x-a.x,dy=c.y-a.y,dist=Math.hypot(dx,dy),min=a.r+c.r;
         if(dist>0&&dist<min){ const nx=dx/dist,ny=dy/dist,ov=(min-dist)/2;
+          if(firstContact===null && (a.n===0)!==(c.n===0)) firstContact = a.n===0?c.n:a.n;   // cue's first object-ball hit (for fouls)
           a.x-=nx*ov;a.y-=ny*ov;c.x+=nx*ov;c.y+=ny*ov;
           const vn=(c.vx-a.vx)*nx+(c.vy-a.vy)*ny; if(vn<0){a.vx+=vn*nx;a.vy+=vn*ny;c.vx-=vn*nx;c.vy-=vn*ny;} } }
     }
@@ -178,28 +205,48 @@ function onPot(b){ if(b.n===0) scratch=true; else pottedBalls.push(b.n); }
 function loop(t){ if(!lastT)lastT=t; let dt=t-lastT; lastT=t; if(dt>40)dt=40; stepAll(dt); draw();
   if(moving()) raf=requestAnimationFrame(loop); else { raf=0; lastT=0; afterShot(); } }
 function afterShot(){ if(mode==='online') return endShotOnline(); endShot(); }
-function shoot(dir,power){ const cb=cueBall(); if(!cb)return; cb.vx=dir.x*power*MAXSPEED; cb.vy=dir.y*power*MAXSPEED;
-  phase='sim'; pottedBalls=[]; scratch=false; if(!raf) raf=requestAnimationFrame(loop); }
+// A shot first plays a ~120ms cue-strike animation (stick draws back then drives into the ball), then launches.
+const STRIKE_MS=120;
+function shoot(dir,power){ const cb=cueBall(); if(!cb)return;
+  strike={dir,power,t:0}; phase='strike'; lastT=0; if(!raf) raf=requestAnimationFrame(strikeLoop); }
+function strikeLoop(ts){ if(!lastT)lastT=ts; const dt=ts-lastT; lastT=ts; if(strike) strike.t+=dt;
+  if(!strike || strike.t>=STRIKE_MS){ const cb=cueBall(), s=strike;
+    if(cb&&s){ cb.vx=s.dir.x*s.power*MAXSPEED; cb.vy=s.dir.y*s.power*MAXSPEED; }
+    phase='sim'; pottedBalls=[]; scratch=false; firstContact=null; strike=null; lastT=0; raf=requestAnimationFrame(loop); return; }
+  draw(); raf=requestAnimationFrame(strikeLoop); }
 
 // Pure-ish resolution of a finished shot. Reads pottedBalls/scratch + current cur/group; applies the
 // cue respawn on a scratch; returns the new turn/groups/scores/winner. Shared by local + online.
 function computeShotOutcome(){
   const potted=pottedBalls.slice();
-  let g1=group[1], g2=group[2], s1=scores[1], s2=scores[2], winner=0, nextCur=cur;
+  let g1=group[1], g2=group[2], s1=scores[1], s2=scores[2], winner=0, nextCur=cur, bih=false;
   if(potted.includes(8)){ const cleared=group[cur]&&remaining(cur)===0; winner=(cleared&&!scratch)?cur:other();
-    return {winner, nextCur:cur, g1,g2,s1,s2}; }
+    return {winner, nextCur:cur, g1,g2,s1,s2, bih:false}; }
   if(!group[cur] && !scratch){ const f=potted.find(n=>n!==8); if(f!=null){ const gg=groupOf(f);
     if(cur===1){ g1=gg; g2=gg==='solid'?'stripe':'solid'; } else { g2=gg; g1=gg==='solid'?'stripe':'solid'; } } }
   const myG = cur===1?g1:g2;
   const gained = potted.filter(n=>n!==8 && (!myG||groupOf(n)===myG)).length;
   if(cur===1) s1+=gained; else s2+=gained;
-  let cont=false; if(!scratch){ cont = myG ? potted.some(n=>groupOf(n)===myG) : potted.length>0; }
-  if(scratch){ respawnCue(); nextCur=other(); } else if(!cont){ nextCur=other(); }
-  return {winner, nextCur, g1,g2,s1,s2};
+  // FOUL = scratch, no ball contacted, or (when the table was NOT open) hitting the wrong ball first.
+  // Judge first contact against the PRE-shot group — on the break / open table you can't foul for
+  // first-hitting either group (groups are only assigned afterwards by what you pot).
+  const preG = group[cur];
+  const pottedPreG = preG ? potted.filter(n=>groupOf(n)===preG).length : 0;
+  const onEight = preG && (liveObjects().filter(o=>groupOf(o.n)===preG).length + pottedPreG)===0;
+  let foul=false;
+  if(scratch) foul=true;
+  else if(firstContact===null) foul=true;
+  else if(onEight){ if(firstContact!==8) foul=true; }
+  else if(preG){ if(groupOf(firstContact)!==preG) foul=true; }
+  else if(firstContact===8) foul=true;                    // open table: hitting the 8 first is a foul
+  const cont = !foul && (myG ? potted.some(n=>groupOf(n)===myG) : potted.length>0);
+  if(foul){ nextCur=other(); bih=true; } else if(!cont){ nextCur=other(); }
+  if(scratch){ respawnCue(); }                            // default cue spot; incoming player can drag it
+  return {winner, nextCur, g1,g2,s1,s2, bih};
 }
 function endShot(){
   const o=computeShotOutcome();
-  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur;
+  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur; ballInHand=!!o.bih;
   if(o.winner){ gameOver(o.winner); return; }
   phase='aim'; updateHUD(); setStatus(turnMsg()); draw();
 }
@@ -208,19 +255,33 @@ function gameOver(winner){ if(raf){cancelAnimationFrame(raf);raf=0;} phase='over
 function respawnCue(){ const cb=balls.find(b=>b.n===0); cb.potted=false; cb.vx=cb.vy=0;
   let hx=L+(R-L)*0.25, hy=MID; for(let i=0;i<50;i++){ if(!liveObjects().some(o=>Math.hypot(o.x-hx,o.y-hy)<BR*2.2)) break; hx-=BR; } cb.x=hx; cb.y=hy; }
 function switchPlayer(){ cur=other(); }
-function turnMsg(){ const g=group[cur]?' ('+(group[cur]==='solid'?'solids':'stripes')+')':''; return `<b>Player ${cur}${g}</b> — pull back &amp; release to shoot`; }
+function turnMsg(){ const g=group[cur]?' ('+(group[cur]==='solid'?'solids':'stripes')+')':'';
+  if(ballInHand) return `<b>Player ${cur}${g}</b> — ball in hand: drag the cue, then pull back to shoot`;
+  return `<b>Player ${cur}${g}</b> — pull back &amp; release to shoot`; }
+function moveCueTo(p){ const cb=cueBall(); if(!cb)return;
+  let x=Math.max(L+BR,Math.min(R-BR,p.x)), y=Math.max(T+BR,Math.min(B-BR,p.y));
+  for(let it=0;it<24;it++){ let moved=false;
+    for(const o of liveObjects()){ const dx=x-o.x,dy=y-o.y,d=Math.hypot(dx,dy),min=BR*2+0.5;
+      if(d<min){ const nx=d>0?dx/d:1, ny=d>0?dy/d:0; x=o.x+nx*min; y=o.y+ny*min; moved=true; } }
+    x=Math.max(L+BR,Math.min(R-BR,x)); y=Math.max(T+BR,Math.min(B-BR,y));
+    if(!moved)break; }
+  cb.x=x; cb.y=y; }
 
 /* ---------- aiming (tracks anywhere in the window) ---------- */
 function toLocal(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H}; }
 function canAim(){ if(phase!=='aim'||moving())return false;
   if(mode==='online'){ if(!state||!state.p2||state.winner||myRole===0||cur!==myRole) return false; }
   return true; }
-function down(e){ if(!canAim())return; aiming=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} ptr=toLocal(e); draw(); }
-function move(e){ if(!aiming)return; ptr=toLocal(e); draw(); }
-function up(){ if(!aiming)return; aiming=false; const cb=cueBall(); if(!cb){draw();return;}
+function down(e){ if(!canAim())return; ptr=toLocal(e); const cb=cueBall();
+  if(ballInHand && cb && Math.hypot(ptr.x-cb.x,ptr.y-cb.y)<BR*3){ placing=true; moveCueTo(ptr); draw(); return; }  // grab the cue to re-place
+  aiming=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} draw(); }
+function move(e){ if(!aiming&&!placing)return; ptr=toLocal(e); if(placing) moveCueTo(ptr); draw(); }
+function up(){
+  if(placing){ placing=false; draw(); return; }   // dropped the cue; can re-place or aim — ball-in-hand stays until the shot
+  if(!aiming)return; aiming=false; const cb=cueBall(); if(!cb){draw();return;}
   const dx=cb.x-ptr.x, dy=cb.y-ptr.y, dist=Math.hypot(dx,dy);
   if(dist<14){ draw(); return; }
-  const dir={x:dx/dist,y:dy/dist}, power=Math.min(dist,MAXPULL)/MAXPULL;
+  const dir={x:dx/dist,y:dy/dist}, power=Math.min(dist,MAXPULL)/MAXPULL; ballInHand=false;  // the shot consumes ball-in-hand
   if(mode==='online') sendShot(dir,power); else shoot(dir,power); }
 cv.addEventListener('pointerdown',down);
 window.addEventListener('pointermove',move);   // window-level so off-table drag still works
@@ -275,18 +336,33 @@ function draw(){
   for(const fy of [0.25,0.5,0.75]){ dot(L-DO,T+(B-T)*fy); dot(R+DO,T+(B-T)*fy); }
   // balls
   for(const b of balls){ if(!b.potted) drawBall(b); }
-  // aim guide + cue
+  // ball-in-hand: dashed ring shows the cue can be dragged to a new spot
+  if(ballInHand && phase==='aim' && (mode!=='online'||cur===myRole)){ const cb=cueBall(); if(cb){
+    ctx.save(); ctx.setLineDash([5,5]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.85)';
+    ctx.beginPath(); ctx.arc(cb.x,cb.y,BR+6,0,7); ctx.stroke(); ctx.restore(); } }
+  // aiming: guide line + cue stick drawn back (further pull = more power)
   if(aiming){ const cb=cueBall(); if(cb){ const dx=cb.x-ptr.x, dy=cb.y-ptr.y, dist=Math.hypot(dx,dy);
-    if(dist>14){ const dir={x:dx/dist,y:dy/dist}, gd=aimGuide(cb,dir);
+    if(dist>14){ const dir={x:dx/dist,y:dy/dist}, gd=aimGuide(cb,dir), pull=Math.min(dist,MAXPULL)/MAXPULL;
       ctx.save(); ctx.setLineDash([10,9]); ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.9)';
       ctx.beginPath(); ctx.moveTo(cb.x,cb.y); ctx.lineTo(gd.end.x,gd.end.y); ctx.stroke(); ctx.setLineDash([]);
       if(gd.hit==='ball'){ ctx.beginPath(); ctx.arc(gd.end.x,gd.end.y,BR,0,7); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.stroke();
         ctx.beginPath(); ctx.moveTo(gd.end.x,gd.end.y); ctx.lineTo(gd.end.x+gd.objDir.x*70,gd.end.y+gd.objDir.y*70); ctx.strokeStyle='#2fe3c0'; ctx.lineWidth=3; ctx.stroke(); }
       ctx.restore();
-      const pull=Math.min(dist,MAXPULL);
-      ctx.save(); ctx.lineCap='round'; ctx.lineWidth=7; ctx.strokeStyle='#caa46a';
-      ctx.beginPath(); ctx.moveTo(cb.x-dir.x*(BR+6),cb.y-dir.y*(BR+6)); ctx.lineTo(cb.x-dir.x*(BR+10+pull*0.5+150),cb.y-dir.y*(BR+10+pull*0.5+150)); ctx.stroke(); ctx.restore();
+      drawCue(cb, dir, BR+12+pull*78);
     } } }
+  // strike: stick accelerates forward into the ball, then the shot launches
+  else if(phase==='strike' && strike){ const cb=cueBall(); if(cb){
+    const t=Math.min(1,strike.t/STRIKE_MS), e=t*t, back=BR+12+strike.power*78;
+    drawCue(cb, strike.dir, back+(BR-1-back)*e); } }
+}
+function drawCue(cb,dir,gap){
+  const tx=cb.x-dir.x*gap, ty=cb.y-dir.y*gap, len=300;
+  const bx=tx-dir.x*len, by=ty-dir.y*len, mx=tx-dir.x*len*0.55, my=ty-dir.y*len*0.55;
+  ctx.save(); ctx.lineCap='round';
+  ctx.lineWidth=8.5; ctx.strokeStyle='#2c1a0e'; ctx.beginPath(); ctx.moveTo(mx,my); ctx.lineTo(bx,by); ctx.stroke();   // butt
+  ctx.lineWidth=7;   ctx.strokeStyle='#d8b27c'; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(mx,my); ctx.stroke();    // shaft
+  ctx.lineWidth=7;   ctx.strokeStyle='#eef2ff'; ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx-dir.x*7,ty-dir.y*7); ctx.stroke(); // ferrule
+  ctx.restore();
 }
 function dot(x,y){ ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill(); }
 function drawBall(b){
@@ -315,7 +391,22 @@ function updateHUD(){
   document.getElementById('nm2').textContent=n2+(group[2]?' · '+(group[2]==='solid'?'Solids':'Stripes'):'');
   document.getElementById('ps1').classList.toggle('active',cur===1&&phase!=='over');
   document.getElementById('ps2').classList.toggle('active',cur===2&&phase!=='over');
+  renderTrays(); updateControls();
 }
+function trayHTML(p){
+  const g=group[p]; if(!g) return '';
+  const nums = g==='solid'?[1,2,3,4,5,6,7]:[9,10,11,12,13,14,15];
+  let icons='';
+  for(const n of nums){ const b=balls.find(x=>x.n===n), done=b&&b.potted, col=ballColor(n), st=n>8;
+    icons+=`<span class="bico${done?' done':''}" style="background:${st?'#eef2ff':col}">${st?`<span class="band" style="background:${col}"></span>`:''}</span>`; }
+  return `<div class="tray"><span class="lbl">${g==='solid'?'Solids':'Stripes'}</span>${icons}</div>`;
+}
+function renderTrays(){ const el=document.getElementById('trays');
+  el.innerHTML = (!group[1]&&!group[2]) ? '' : (trayHTML(1)+trayHTML(2)); }
+function updateControls(){ const rb=document.getElementById('rackBtn'), rc=document.getElementById('roomchip');
+  if(mode==='online'){ rb.textContent='Rematch'; rb.style.display = (state&&state.winner)?'':'none';
+    rc.style.display='flex'; document.getElementById('roomCodeLbl').textContent=roomCode||'····'; }
+  else { rb.textContent='Rack again'; rb.style.display=''; rc.style.display='none'; } }
 function setStatus(h){ document.getElementById('status').innerHTML=h; }
 
 /* ================= Phase 2 — online 1v1 (Firebase, shot-params + settled-snapshot) ================= */
@@ -351,44 +442,48 @@ function joinRoom(code){
     if(!r.p2) ref.child('p2').set({id:myId,name}).then(enterOnline);
     else toast('Game is full'); }).catch(e=>{ console.error(e); toast('Join failed'); });
 }
+function startGameUI(){ document.body.classList.add('ingame');
+  try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} }
 function enterOnline(){
-  mode='online'; $('lobby').classList.add('hidden'); $('tag').textContent='online 1v1';
-  $('rackBtn').textContent='Rematch'; $('inviteBtn').style.display='';
+  mode='online'; $('lobby').classList.add('hidden'); $('tag').textContent='online 1v1'; startGameUI();
   roomRef=db.ref('pool/'+roomCode);
   roomRef.on('value',s=>{ if(!s.exists())return; state=s.val();
     myRole = state.p1&&state.p1.id===myId?1 : (state.p2&&state.p2.id===myId?2:0);
     cur=state.turn||1; group={1:state.g1||null,2:state.g2||null}; scores={1:state.p1score||0,2:state.p2score||0};
     if(state.seq>localSeq && state.shot){            // a new shot arrived — replay it from the synced positions
-      localSeq=state.seq; lastShotBy=state.shot.by;
-      loadBalls(state.balls); pottedBalls=[]; scratch=false; phase='sim';
+      localSeq=state.seq; lastShotBy=state.shot.by; ballInHand=false; placing=false;
+      loadBalls(state.balls);
+      if(state.shot.cx!=null){ const cb=cueBall(); if(cb){ cb.x=state.shot.cx; cb.y=state.shot.cy; } }   // ball-in-hand placement
+      pottedBalls=[]; scratch=false; firstContact=null; phase='sim';
       shoot({x:state.shot.ax,y:state.shot.ay}, state.shot.power);
     } else if(!raf){                                  // idle — snap to the authoritative settled state
       localSeq=Math.max(localSeq,state.seq||0);
-      loadBalls(state.balls); pottedBalls=[]; scratch=false; phase=state.winner?'over':'aim';
+      loadBalls(state.balls); pottedBalls=[]; scratch=false; ballInHand=!!state.bih; phase=state.winner?'over':'aim';
     }
     updateHUD(); renderStatus(); draw();
   });
 }
-function sendShot(dir,power){ if(!roomRef)return; phase='sim';
-  roomRef.update({ shot:{by:myRole,ax:dir.x,ay:dir.y,power}, seq:(state.seq||0)+1 }); }
+function sendShot(dir,power){ if(!roomRef)return; phase='sim'; const cb=cueBall();
+  roomRef.update({ shot:{by:myRole,ax:dir.x,ay:dir.y,power, cx:cb?Math.round(cb.x*10)/10:null, cy:cb?Math.round(cb.y*10)/10:null}, seq:(state.seq||0)+1 }); }
 function endShotOnline(){
   const o=computeShotOutcome();
-  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur; phase=o.winner?'over':'aim';
+  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur; ballInHand=!!o.bih; phase=o.winner?'over':'aim';
   if(myRole===lastShotBy && roomRef){            // shooter writes the authoritative settled snapshot
     roomRef.update({ balls:serializeBalls(), turn:o.nextCur, g1:o.g1||'', g2:o.g2||'',
-      p1score:o.s1, p2score:o.s2, winner:o.winner||0, broke:true, shot:null });
+      p1score:o.s1, p2score:o.s2, winner:o.winner||0, broke:true, shot:null, bih:o.bih||false });
   }
   updateHUD(); renderStatus(); draw();
 }
 function renderStatus(){ if(mode!=='online'||!state) return; let s;
-  if(!state.p2){ s=`Waiting for a friend · code <span class="share">${roomCode}</span> — tap “Invite link”`; }
+  if(!state.p2){ s=`Waiting for a friend · code <span class="share">${roomCode}</span> — tap Invite (top-right)`; }
   else if(state.winner){ const win=state.winner===myRole?'You win! 🏆':'You lose'; const rm=state.rematch;
     if(rm&&rm.by&&rm.by!==myRole) s=`<b>${oppName()} wants a rematch</b> — press Rematch to accept`;
     else if(rm&&rm.by===myRole) s=`<b>${win}</b> — rematch sent…`;
     else s=`<b>${win}</b> — press Rematch`; }
   else { const g=group[cur]?' ('+(group[cur]==='solid'?'solids':'stripes')+')':'';
-    s = cur===myRole ? (state.broke?`<b>Your turn${g}</b> — pull back &amp; release`:'<b>Your break!</b> — pull back &amp; release')
-                     : `<b>${oppName()}’s turn${g}…</b>`; }
+    if(cur===myRole){ const bih=ballInHand?' — ball in hand: drag the cue,':'';
+      s = state.broke?`<b>Your turn${g}</b>${bih} pull back &amp; release`:'<b>Your break!</b> — pull back &amp; release'; }
+    else s = `<b>${oppName()}’s turn${g}…</b>`; }
   setStatus(s);
 }
 function requestRematch(){ if(!roomRef||!state)return;
@@ -400,11 +495,11 @@ function acceptRematch(){ const ns=(state.starter||1)===1?2:1; rack();
 /* wiring */
 $('createBtn').onclick=createRoom;
 $('joinBtn').onclick=()=>joinRoom($('joinCode').value);
-$('localBtn').onclick=()=>{ mode='local'; $('lobby').classList.add('hidden'); $('tag').textContent='pass & play (local)'; rack(); };
+$('localBtn').onclick=()=>{ mode='local'; $('lobby').classList.add('hidden'); $('tag').textContent='pass & play (local)'; startGameUI(); rack(); };
 $('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ $('joinCode').value?joinRoom($('joinCode').value):createRoom(); }});
 $('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom($('joinCode').value); });
 $('rackBtn').onclick=()=>{ if(mode==='online') requestRematch(); else rack(); };
-$('inviteBtn').onclick=()=>{ const url=location.origin+location.pathname+'?room='+roomCode;
+$('inviteBtn2').onclick=()=>{ if(!roomCode){ toast('Create or join a game first'); return; } const url=location.origin+location.pathname+'?room='+roomCode;
   navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url)); };
 (function(){ const p=new URLSearchParams(location.search).get('room');
   if(p){ $('joinCode').value=p.toUpperCase(); $('createBtn').style.display='none'; $('lobbyTag').textContent='Enter your name to join the game'; } })();
