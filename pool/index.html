@@ -93,7 +93,7 @@
   <div class="status" id="status">Player 1 — pull back from the cue ball &amp; release to break</div>
   <div class="wrap"><canvas id="cv" width="1120" height="620"></canvas></div>
   <div class="ctrls"><button id="rackBtn">Rack again</button></div>
-  <div class="hint" id="hint">Pull back behind the white ball and release — the further you pull, the harder the strike. Pot a ball from your group to keep your turn; sink the 8 only after clearing your group.</div>
+  <div class="hint" id="hint">Pull back behind the white ball and release — the further you pull, the harder the strike. Pot a ball from your group to keep your turn; sink the 8 only after clearing your group.<span id="secretDot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.06);margin-left:7px;vertical-align:middle;cursor:default"></span></div>
   <div class="rotate" id="rotate">
     <svg viewBox="0 0 24 24" fill="none" stroke="#2fe3c0" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 3h8"/></svg>
     <div><b>Rotate your device</b><br><span style="color:var(--muted);font-size:13px">8-ball plays in landscape</span></div>
@@ -146,6 +146,7 @@ function groupOf(n){ return n===8?'eight':(n<8?'solid':'stripe'); }
 let balls=[], cur=1, scores={1:0,2:0}, group={1:null,2:null}, phase='aim', raf=0, lastT=0;
 let aiming=false, ptr={x:0,y:0}, pottedBalls=[], scratch=false;
 let firstContact=null, ballInHand=false, placing=false, strike=null;   // foul tracking, ball-in-hand, cue-strike anim
+let coachOn=false, coachOff=false, coachBest=null, coachSig='';         // secret coach (host-only, passphrase-gated)
 const other=()=>cur===1?2:1;
 
 function rack(){
@@ -354,6 +355,7 @@ function draw(){
   else if(phase==='strike' && strike){ const cb=cueBall(); if(cb){
     const t=Math.min(1,strike.t/STRIKE_MS), e=t*t, back=BR+12+strike.power*78;
     drawCue(cb, strike.dir, back+(BR-1-back)*e); } }
+  drawCoach();
 }
 function drawCue(cb,dir,gap){
   const tx=cb.x-dir.x*gap, ty=cb.y-dir.y*gap, len=300;
@@ -503,6 +505,88 @@ $('inviteBtn2').onclick=()=>{ if(!roomCode){ toast('Create or join a game first'
   navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url)); };
 (function(){ const p=new URLSearchParams(location.search).get('room');
   if(p){ $('joinCode').value=p.toUpperCase(); $('createBtn').style.display='none'; $('lobbyTag').textContent='Enter your name to join the game'; } })();
+
+/* ================= Phase 3 — secret coach (host-only, passphrase-gated, purely local) ================= */
+const UNLOCK_SHA256="2bca9ed13bcb519f4c2aa0af0615a64890e047452a1dc102617c2f62e2b892ca";  // SHA-256 of the shared passphrase
+async function sha256(s){ const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+coachOn = localStorage.getItem('mb_coach')==='1';
+function unlock(p){ sha256(String(p).trim()).then(h=>{ if(h===UNLOCK_SHA256){ coachOn=true; localStorage.setItem('mb_coach','1'); toast('Coach unlocked'); draw(); } else toast('nope'); }); }
+(function(){ let c=0,t=null; $('secretDot').addEventListener('click',()=>{ c++; clearTimeout(t); t=setTimeout(()=>c=0,600);
+  if(c>=3){ c=0; const p=prompt('passphrase'); if(p!=null) unlock(p); } }); })();
+(function(){ const m=location.hash.match(/k=([^&]+)/); if(m){ sha256(decodeURIComponent(m[1])).then(h=>{ if(h===UNLOCK_SHA256){ coachOn=true; localStorage.setItem('mb_coach','1'); } history.replaceState(null,'',location.pathname+location.search); }); } })();
+document.addEventListener('keydown',e=>{ if((e.key==='h'||e.key==='H')&&!/input/i.test(document.activeElement.tagName)){ coachOff=!coachOff; draw(); } });
+(function(){ let last=0; window.addEventListener('touchstart',e=>{ if(e.touches.length===2){ const t=Date.now(); if(t-last<500){ coachOff=!coachOff; draw(); if(navigator.vibrate)navigator.vibrate(15); last=0; } else last=t; } },{passive:true}); })();
+
+// Replay a shot on a CLONE of the table (swap the global balls, run the real physics, then restore).
+function simulateShot(dir,power){
+  const real=balls, sFC=firstContact, sP=pottedBalls, sScr=scratch;
+  balls=real.map(b=>({...b})); firstContact=null; pottedBalls=[]; scratch=false;
+  const cb=balls.find(b=>b.n===0&&!b.potted);
+  if(!cb){ balls=real; firstContact=sFC; pottedBalls=sP; scratch=sScr; return null; }
+  cb.vx=dir.x*power*MAXSPEED; cb.vy=dir.y*power*MAXSPEED;
+  const cuePath=[[cb.x,cb.y]]; let objN=null, objPath=null, potObj=false, potCue=false, t=0;
+  while(t<1700 && balls.some(b=>!b.potted&&(b.vx||b.vy))){
+    stepAll(16); t+=16;
+    const c=balls.find(b=>b.n===0); if(c){ cuePath.push([c.x,c.y]); if(c.potted)potCue=true; }
+    if(firstContact!=null && objN===null){ objN=firstContact; objPath=[]; }
+    if(objN!==null){ const o=balls.find(b=>b.n===objN); if(o){ objPath.push([o.x,o.y]); if(o.potted)potObj=true; } if(potObj||(objPath&&objPath.length>95)) break; }
+  }
+  balls=real; firstContact=sFC; pottedBalls=sP; scratch=sScr;
+  return {cuePath, objN, objPath, potObj, potCue};
+}
+// Is a straight lane between two points clear of other balls?
+function laneClear(x1,y1,x2,y2,ignore){ const ex=x2-x1, ey=y2-y1, L2=ex*ex+ey*ey;
+  for(const o of liveObjects()){ if(ignore.includes(o.n))continue;
+    let t=L2?((o.x-x1)*ex+(o.y-y1)*ey)/L2:0; t=t<0?0:t>1?1:t;
+    if(Math.hypot(o.x-(x1+ex*t), o.y-(y1+ey*t)) < 2*BR+1) return false; }
+  return true; }
+// Find the best makeable pot for the player to move (ghost-ball geometry, verified by a sim).
+function bestShot(){
+  const cb=cueBall(); if(!cb) return null;
+  const G=group[cur]; let targets;
+  if(G){ const own=liveObjects().filter(o=>groupOf(o.n)===G); targets = own.length?own:liveObjects().filter(o=>o.n===8); }
+  else targets = liveObjects().filter(o=>o.n!==8);          // open table
+  let best=null;
+  for(const T of targets) for(const P of POCKETS){ const pk=P.hole;
+    const px=pk[0]-T.x, py=pk[1]-T.y, dP=Math.hypot(px,py); if(dP<1)continue; const uPx=px/dP,uPy=py/dP;
+    const gx=T.x-uPx*2*BR, gy=T.y-uPy*2*BR;                 // ghost-ball centre
+    const cx=gx-cb.x, cy=gy-cb.y, dG=Math.hypot(cx,cy); if(dG<1)continue; const uGx=cx/dG,uGy=cy/dG;
+    const cut=Math.acos(Math.max(-1,Math.min(1,uGx*uPx+uGy*uPy)));
+    if(cut>78*Math.PI/180) continue;                        // too thin to make
+    if(!laneClear(cb.x,cb.y,gx,gy,[T.n,0])) continue;       // cue path to the ghost blocked
+    if(!laneClear(T.x,T.y,pk[0],pk[1],[T.n])) continue;     // object path to the pocket blocked
+    const power=Math.min(1,0.42+(dG+dP)/1500), sim=simulateShot({x:uGx,y:uGy},power);
+    if(!sim||sim.objN!==T.n||!sim.potObj) continue;
+    const score=cut+(sim.potCue?3:0);                       // prefer straight cuts; avoid scratches
+    if(!best||score<best.score) best={score,target:T.n,pocket:pk,dir:{x:uGx,y:uGy},power,ghost:{x:gx,y:gy}};
+  }
+  return best;
+}
+function coachActive(){ return coachOn && !coachOff && phase==='aim' && !moving() && canAim(); }
+function coachSig_(){ return cur+'|'+liveObjects().map(b=>b.n+':'+Math.round(b.x)+','+Math.round(b.y)).join(';')+'|'+Math.round(cueBall()?.x||0); }
+function drawCoach(){
+  if(!coachActive()){ return; }
+  const sig=coachSig_(); if(sig!==coachSig){ coachSig=sig; coachBest=bestShot(); }
+  if(aiming){ const cb=cueBall(); if(cb){ const dx=cb.x-ptr.x,dy=cb.y-ptr.y,d=Math.hypot(dx,dy);
+    if(d>14){ drawPrediction({x:dx/d,y:dy/d}, Math.min(d,MAXPULL)/MAXPULL); } } }
+  if(coachBest && !placing) drawRecommendation(coachBest);
+}
+function tracePath(p){ ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.stroke(); }
+function drawPrediction(dir,power){ const sim=simulateShot(dir,power); if(!sim)return;
+  ctx.save(); ctx.setLineDash([6,7]);
+  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.5)'; tracePath(sim.cuePath);
+  if(sim.objN!=null && sim.objPath && sim.objPath.length>1){
+    ctx.lineWidth=2.5; ctx.strokeStyle=ballColor(sim.objN); tracePath(sim.objPath);
+    const e=sim.objPath[sim.objPath.length-1];
+    if(sim.potObj){ ctx.setLineDash([]); ctx.lineWidth=3; ctx.strokeStyle='#2fe3c0'; ctx.beginPath(); ctx.arc(e[0],e[1],BR+4,0,7); ctx.stroke(); } }
+  ctx.restore(); }
+function drawRecommendation(b){ const T=balls.find(x=>x.n===b.target); if(!T||T.potted)return;
+  ctx.save(); ctx.setLineDash([4,6]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,210,63,.55)';
+  const cb=cueBall(); if(cb){ ctx.beginPath(); ctx.moveTo(cb.x,cb.y); ctx.lineTo(b.ghost.x,b.ghost.y); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(T.x,T.y); ctx.lineTo(b.pocket[0],b.pocket[1]); ctx.stroke();
+  ctx.setLineDash([]); ctx.lineWidth=3; ctx.strokeStyle='#ffd23f'; ctx.beginPath(); ctx.arc(T.x,T.y,BR+5,0,7); ctx.stroke();
+  ctx.beginPath(); ctx.arc(b.pocket[0],b.pocket[1],7,0,7); ctx.fillStyle='#ffd23f'; ctx.fill(); ctx.restore(); }
+
 rack();   // draw the table behind the lobby
 </script>
 </body>
