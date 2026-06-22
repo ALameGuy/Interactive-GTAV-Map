@@ -63,6 +63,23 @@
   .rotate svg{width:64px;height:64px;animation:tilt 1.6s ease-in-out infinite}
   @keyframes tilt{0%,100%{transform:rotate(0)}50%{transform:rotate(-90deg)}}
   @media (orientation:portrait) and (pointer:coarse){ body.ingame .rotate{display:flex} }
+  /* mobile LANDSCAPE in-game: strip the chrome and size the table to the available height so it fits */
+  @media (orientation:landscape) and (max-height:560px){
+    html,body{height:100%}
+    body.ingame{padding:5px 8px 4px;justify-content:flex-start}
+    body.ingame .back,body.ingame .logo,body.ingame .tag,body.ingame .hint,body.ingame .ctrls{display:none}
+    body.ingame .hud{margin:1px 0;gap:8px}
+    body.ingame .pscore{padding:4px 11px;font-size:12px}
+    body.ingame .pscore .n{font-size:11px;padding:1px 7px}
+    body.ingame .trays{margin:1px 0;min-height:0;gap:10px}
+    body.ingame .bico{width:13px;height:13px}
+    body.ingame .status{margin:2px 0;min-height:0;font-size:12px}
+    body.ingame .wrap{max-width:none;width:100%;flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+    body.ingame canvas{width:auto;height:100%;max-width:100%;border-radius:10px}
+    body.ingame .roomchip{top:6px;right:8px;padding:3px 5px 3px 9px;font-size:11px}
+  }
+  /* let the lobby / rematch modals scroll if a short screen can't fit them */
+  .overlay{overflow-y:auto}
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0a1126;border:1.5px solid var(--accent);color:var(--txt);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:30}
   .toast.show{opacity:1}
   .share{cursor:pointer;color:var(--accent);font-weight:700}
@@ -83,6 +100,11 @@
     <button class="btn2 ghost" id="localBtn">Pass &amp; play (local)</button>
   </div></div>
   <div class="toast" id="toast"></div>
+  <div class="overlay hidden" id="rematchOv"><div class="modal">
+    <h2 id="rmTitle">Game over</h2>
+    <p id="rmText">Play again?</p>
+    <div id="rmButtons"></div>
+  </div></div>
   <div class="logo">8-<span class="a">BALL</span> POOL</div>
   <div class="tag" id="tag">online 1v1 · pass &amp; play</div>
   <div class="hud">
@@ -406,8 +428,8 @@ function trayHTML(p){
 function renderTrays(){ const el=document.getElementById('trays');
   el.innerHTML = (!group[1]&&!group[2]) ? '' : (trayHTML(1)+trayHTML(2)); }
 function updateControls(){ const rb=document.getElementById('rackBtn'), rc=document.getElementById('roomchip');
-  if(mode==='online'){ rb.textContent='Rematch'; rb.style.display = (state&&state.winner)?'':'none';
-    rc.style.display='flex'; document.getElementById('roomCodeLbl').textContent=roomCode||'····'; }
+  if(mode==='online'){ rb.style.display='none'; rc.style.display='flex';
+    document.getElementById('roomCodeLbl').textContent=roomCode||'····'; renderRematch(); }
   else { rb.textContent='Rack again'; rb.style.display=''; rc.style.display='none'; } }
 function setStatus(h){ document.getElementById('status').innerHTML=h; }
 
@@ -415,7 +437,7 @@ function setStatus(h){ document.getElementById('status').innerHTML=h; }
 const firebaseConfig = { apiKey:'AIzaSyAGqkZpU53S7QYsuDbIfBo08s9tCF8Iif4', authDomain:'map-v2-6b2e4.firebaseapp.com',
   databaseURL:'https://map-v2-6b2e4-default-rtdb.firebaseio.com', projectId:'map-v2-6b2e4',
   storageBucket:'map-v2-6b2e4.appspot.com', messagingSenderId:'216550808002', appId:'1:216550808002:web:3443680b0ebfebbae09e5b' };
-let mode='local', db=null, roomCode=null, roomRef=null, myRole=0, state=null, localSeq=0, lastShotBy=0;
+let mode='local', db=null, roomCode=null, roomRef=null, myRole=0, state=null, animatedN=0, resolvedN=0, lastShotBy=0;
 try{ firebase.initializeApp(firebaseConfig); db=firebase.database(); }catch(e){ console.warn(e); }
 let myId=localStorage.getItem('mb_id'); if(!myId){ myId=Math.random().toString(36).slice(2,10); localStorage.setItem('mb_id',myId); }
 const $=id=>document.getElementById(id);
@@ -449,31 +471,43 @@ function startGameUI(){ document.body.classList.add('ingame');
 function enterOnline(){
   mode='online'; $('lobby').classList.add('hidden'); $('tag').textContent='online 1v1'; startGameUI();
   roomRef=db.ref('pool/'+roomCode);
-  roomRef.on('value',s=>{ if(!s.exists())return; state=s.val();
-    myRole = state.p1&&state.p1.id===myId?1 : (state.p2&&state.p2.id===myId?2:0);
-    cur=state.turn||1; group={1:state.g1||null,2:state.g2||null}; scores={1:state.p1score||0,2:state.p2score||0};
-    if(state.seq>localSeq && state.shot){            // a new shot arrived — replay it from the synced positions
-      localSeq=state.seq; lastShotBy=state.shot.by; ballInHand=false; placing=false;
-      loadBalls(state.balls);
-      if(state.shot.cx!=null){ const cb=cueBall(); if(cb){ cb.x=state.shot.cx; cb.y=state.shot.cy; } }   // ball-in-hand placement
-      pottedBalls=[]; scratch=false; firstContact=null; phase='sim';
-      shoot({x:state.shot.ax,y:state.shot.ay}, state.shot.power);
-    } else if(!raf){                                  // idle — snap to the authoritative settled state
-      localSeq=Math.max(localSeq,state.seq||0);
-      loadBalls(state.balls); pottedBalls=[]; scratch=false; ballInHand=!!state.bih; phase=state.winner?'over':'aim';
-    }
-    updateHUD(); renderStatus(); draw();
-  });
+  roomRef.on('value',s=>{ if(!s.exists())return; state=s.val(); onState(); });
 }
-function sendShot(dir,power){ if(!roomRef)return; phase='sim'; const cb=cueBall();
-  roomRef.update({ shot:{by:myRole,ax:dir.x,ay:dir.y,power, cx:cb?Math.round(cb.x*10)/10:null, cy:cb?Math.round(cb.y*10)/10:null}, seq:(state.seq||0)+1 }); }
-function endShotOnline(){
-  const o=computeShotOutcome();
-  group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; cur=o.nextCur; ballInHand=!!o.bih; phase=o.winner?'over':'aim';
-  if(myRole===lastShotBy && roomRef){            // shooter writes the authoritative settled snapshot
-    roomRef.update({ balls:serializeBalls(), turn:o.nextCur, g1:o.g1||'', g2:o.g2||'',
-      p1score:o.s1, p2score:o.s2, winner:o.winner||0, broke:true, shot:null, bih:o.bih||false });
+// Single source of truth. seq = # of shots whose authoritative outcome has been written. shot.n = the
+// shot currently being replayed (= seq+1, unresolved until the shooter writes the result + bumps seq).
+function onState(){ const s=state;
+  myRole = s.p1&&s.p1.id===myId?1 : (s.p2&&s.p2.id===myId?2:0);
+  const sh=s.shot, seq=s.seq||0;
+  // A) a new shot is broadcast and not yet resolved → replay it on BOTH clients from the synced positions
+  if(sh && (sh.n||0)>animatedN && seq < (sh.n||0)){
+    animatedN=sh.n; lastShotBy=sh.by;
+    cur=s.turn||1; group={1:s.g1||null,2:s.g2||null}; scores={1:s.p1score||0,2:s.p2score||0};
+    loadBalls(s.balls);
+    if(sh.cx!=null){ const cb=cueBall(); if(cb){ cb.x=sh.cx; cb.y=sh.cy; } }   // ball-in-hand placement
+    pottedBalls=[]; scratch=false; firstContact=null; ballInHand=false; placing=false; phase='sim';
+    updateHUD(); renderStatus(); draw();
+    shoot({x:sh.ax,y:sh.ay}, sh.power);
+    return;
   }
+  // B) idle + the last shot has been resolved (or a non-shot change: join/rematch) → snap to authoritative
+  if(!raf && seq>=animatedN){ applyResolved(); }
+  updateHUD(); renderStatus(); draw();
+}
+function applyResolved(){ const s=state; animatedN=Math.max(animatedN,s.seq||0); resolvedN=s.seq||0;
+  cur=s.turn||1; group={1:s.g1||null,2:s.g2||null}; scores={1:s.p1score||0,2:s.p2score||0};
+  loadBalls(s.balls); pottedBalls=[]; scratch=false; ballInHand=!!s.bih; phase=s.winner?'over':'aim'; }
+function sendShot(dir,power){ if(!roomRef)return; phase='sim'; const cb=cueBall();
+  roomRef.update({ shot:{by:myRole, n:(state.seq||0)+1, ax:dir.x, ay:dir.y, power,
+    cx:cb?Math.round(cb.x*10)/10:null, cy:cb?Math.round(cb.y*10)/10:null} }); }
+function endShotOnline(){
+  if(myRole===lastShotBy && roomRef){      // ONLY the shooter resolves the shot — single authority
+    const o=computeShotOutcome();
+    cur=o.nextCur; group={1:o.g1,2:o.g2}; scores={1:o.s1,2:o.s2}; ballInHand=!!o.bih; phase=o.winner?'over':'aim'; resolvedN=animatedN;
+    roomRef.update({ balls:serializeBalls(), turn:o.nextCur, g1:o.g1||'', g2:o.g2||'',
+      p1score:o.s1, p2score:o.s2, winner:o.winner||0, broke:true, bih:o.bih||false, seq:animatedN, shot:null });
+  } else if(state && (state.seq||0)>=animatedN){
+    applyResolved();                        // non-shooter: authoritative result already arrived → apply it
+  }                                         // else: wait — onState() will snap when the result lands
   updateHUD(); renderStatus(); draw();
 }
 function renderStatus(){ if(mode!=='online'||!state) return; let s;
@@ -490,9 +524,23 @@ function renderStatus(){ if(mode!=='online'||!state) return; let s;
 }
 function requestRematch(){ if(!roomRef||!state)return;
   if(state.rematch&&state.rematch.by&&state.rematch.by!==myRole) return acceptRematch();
-  roomRef.update({rematch:{by:myRole}}); toast('Rematch requested'); }
+  roomRef.update({rematch:{by:myRole}}); }
 function acceptRematch(){ const ns=(state.starter||1)===1?2:1; rack();
-  roomRef.update({ balls:serializeBalls(), turn:ns, starter:ns, g1:'',g2:'', p1score:0,p2score:0, winner:0, broke:false, shot:null, rematch:null }); }
+  roomRef.update({ balls:serializeBalls(), turn:ns, starter:ns, g1:'',g2:'', p1score:0,p2score:0, winner:0, broke:false, bih:false, shot:null, rematch:null }); }
+function leaveGame(){ if(roomRef) roomRef.off(); location.href=location.pathname; }
+function renderRematch(){ const ov=$('rematchOv');
+  if(mode!=='online'||!state||!state.winner){ ov.classList.add('hidden'); return; }
+  $('rmTitle').textContent = state.winner===myRole?'You win! 🏆':'You lose';
+  const rm=state.rematch, B=$('rmButtons');
+  if(rm&&rm.by===myRole){ $('rmText').textContent='Rematch sent — waiting for opponent…';
+    B.innerHTML='<button class="btn2 ghost" id="rmCancel">Cancel</button>'; $('rmCancel').onclick=()=>roomRef.update({rematch:null}); }
+  else if(rm&&rm.by&&rm.by!==myRole){ $('rmText').textContent=oppName()+' wants a rematch!';
+    B.innerHTML='<div class="row"><button class="btn2" id="rmAcc">Accept</button><button class="btn2 ghost" id="rmLeave">Leave</button></div>';
+    $('rmAcc').onclick=acceptRematch; $('rmLeave').onclick=leaveGame; }
+  else { $('rmText').textContent='Good game! Run it back?';
+    B.innerHTML='<div class="row"><button class="btn2" id="rmReq">Rematch</button><button class="btn2 ghost" id="rmLeave">Leave</button></div>';
+    $('rmReq').onclick=requestRematch; $('rmLeave').onclick=leaveGame; }
+  ov.classList.remove('hidden'); }
 
 /* wiring */
 $('createBtn').onclick=createRoom;
