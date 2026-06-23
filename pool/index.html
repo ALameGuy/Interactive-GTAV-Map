@@ -84,11 +84,47 @@
   .toast.show{opacity:1}
   .share{cursor:pointer;color:var(--accent);font-weight:700}
   #inviteBtn{background:#0a1126;color:var(--accent);border:1.5px solid var(--line);box-shadow:none}
+  /* ---- vertical power meter (right side, off the felt) ---- */
+  .powerwrap{position:fixed;right:20px;top:50%;z-index:8;display:flex;flex-direction:column;align-items:center;gap:9px;
+    transform:translateY(-50%);opacity:0;pointer-events:none;transition:opacity .18s ease-out;will-change:opacity}
+  .powerwrap.show{opacity:1}
+  .powerlabel{font-family:'Fredoka',sans-serif;font-weight:700;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase}
+  .powertrack{position:relative;width:18px;height:240px;border-radius:11px;background:#0a1126;border:1.5px solid var(--line);
+    overflow:hidden;box-shadow:inset 0 2px 7px rgba(0,0,0,.55);transform:translateX(14px);transition:transform .2s ease-out}
+  .powerwrap.show .powertrack{transform:translateX(0)}
+  .powerfill{position:absolute;left:0;right:0;bottom:0;top:0;border-radius:11px;transform:scaleY(0);transform-origin:bottom;
+    background:linear-gradient(to top,#2fe3c0 0%,#7cf0a8 32%,#ffce1f 66%,#ff7a45 86%,#e02434 100%);
+    transition:transform .07s linear;will-change:transform}
+  .powerfill::after{content:'';position:absolute;left:0;right:0;top:0;height:8px;background:rgba(255,255,255,.55);filter:blur(2px)}
+  .powerpct{font-family:'Fredoka',sans-serif;font-weight:600;font-size:12px;color:var(--txt);min-width:36px;text-align:center;
+    font-variant-numeric:tabular-nums}
+  /* ---- mobile fullscreen toggle ---- */
+  .fsbtn{display:none;position:fixed;z-index:9;bottom:8px;left:8px;align-items:center;justify-content:center;
+    background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:7px;color:var(--muted);cursor:pointer}
+  .fsbtn svg{width:18px;height:18px;display:block}
+  @media (orientation:landscape) and (max-height:560px){
+    body.ingame .powerwrap{right:7px;gap:5px}
+    body.ingame .powertrack{height:46vh;max-height:240px;width:15px}
+    body.ingame .powerlabel{font-size:8px;letter-spacing:1px}
+    body.ingame .powerpct{font-size:10px}
+    body.ingame .fsbtn{display:flex}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .powerwrap,.powertrack,.powerfill{transition:none}
+  }
 </style>
 </head>
 <body>
   <a class="back" href="../">← 1v1 me bro</a>
   <div class="roomchip" id="roomchip">room <b id="roomCodeLbl">····</b><button id="inviteBtn2">Invite</button></div>
+  <div class="powerwrap" id="powerwrap" aria-hidden="true">
+    <div class="powerlabel">Power</div>
+    <div class="powertrack"><div class="powerfill" id="powerfill"></div></div>
+    <div class="powerpct" id="powerpct">0%</div>
+  </div>
+  <button class="fsbtn" id="fsBtn" aria-label="Toggle fullscreen" title="Fullscreen">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3m13-5v3a2 2 0 0 1-2 2h-3"/></svg>
+  </button>
   <div class="overlay" id="lobby"><div class="modal">
     <h2>8-<span class="a">BALL</span> POOL</h2>
     <p id="lobbyTag">Play a friend online, or pass &amp; play on one device.</p>
@@ -116,7 +152,7 @@
   <div class="status" id="status">Player 1 — pull back from the cue ball &amp; release to break</div>
   <div class="wrap"><canvas id="cv" width="1120" height="620"></canvas></div>
   <div class="ctrls"><button id="rackBtn">Rack again</button></div>
-  <div class="hint" id="hint">Pull back behind the white ball and release — the further you pull, the harder the strike. Pot a ball from your group to keep your turn; sink the 8 only after clearing your group. <span style="opacity:.28;font-size:.9em">v1<span id="vDot" style="font-size:.72em;cursor:default">.</span>0</span></div>
+  <div class="hint" id="hint">Move to aim — the line follows your cursor. Then click anywhere and pull back to power up (power builds from where you click; the aim stays locked). Drag forward to ease off, release to shoot. Pot a ball from your group to keep your turn; sink the 8 only after clearing your group. <span style="opacity:.28;font-size:.9em">v1<span id="vDot" style="font-size:.72em;cursor:default">.</span>1</span></div>
   <div class="rotate" id="rotate">
     <svg viewBox="0 0 24 24" fill="none" stroke="#2fe3c0" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 3h8"/></svg>
     <div><b>Rotate your device</b><br><span style="color:var(--muted);font-size:13px">8-ball plays in landscape</span></div>
@@ -167,7 +203,7 @@ function ballColor(n){ return n===8?'#15151a':SOLID[n>8?n-8:n]; }
 function groupOf(n){ return n===8?'eight':(n<8?'solid':'stripe'); }
 
 let balls=[], cur=1, scores={1:0,2:0}, group={1:null,2:null}, phase='aim', raf=0, lastT=0;
-let aiming=false, ptr={x:0,y:0}, pottedBalls=[], scratch=false;
+let aimActive=false, pressing=false, aimDir={x:1,y:0}, aimPower=0, pullAnchor={x:0,y:0}, ptr={x:0,y:0}, pottedBalls=[], scratch=false;
 let firstContact=null, ballInHand=false, placing=false, strike=null;   // foul tracking, ball-in-hand, cue-strike anim
 let coachOn=false, coachOff=false, coachBest=null, coachSig='';         // secret coach (host-only, passphrase-gated)
 const other=()=>cur===1?2:1;
@@ -295,23 +331,53 @@ function moveCueTo(p){ const cb=cueBall(); if(!cb)return;
     if(!moved)break; }
   cb.x=x; cb.y=y; }
 
-/* ---------- aiming (tracks anywhere in the window) ---------- */
+/* ---------- aiming ----------
+   AIM follows the pointer (the line points where you point — a long lever, so it's precise and
+   never jumps between degrees). To shoot you press anywhere and pull BACK: power builds from
+   the drag distance starting at your click (power 0), and the aim FREEZES while you pull. Push
+   the cursor in FRONT of the ball again to unlock the aim and re-adjust before releasing. */
 function toLocal(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)/r.width*W, y:(e.clientY-r.top)/r.height*H}; }
+const MINPOW=0.035;                                   // below this, releasing won't fire (lets you re-aim)
 function canAim(){ if(phase!=='aim'||moving())return false;
+  if(!document.body.classList.contains('ingame')) return false;   // not while the lobby is up
   if(mode==='online'){ if(!state||!state.p2||state.winner||myRole===0||cur!==myRole) return false; }
   return true; }
-function down(e){ if(!canAim())return; ptr=toLocal(e); const cb=cueBall();
-  if(ballInHand && cb && Math.hypot(ptr.x-cb.x,ptr.y-cb.y)<BR*3){ placing=true; moveCueTo(ptr); draw(); return; }  // grab the cue to re-place
-  aiming=true; try{cv.setPointerCapture(e.pointerId);}catch(_){} draw(); }
-function move(e){ if(!aiming&&!placing)return; ptr=toLocal(e); if(placing) moveCueTo(ptr); draw(); }
-function up(){
-  if(placing){ placing=false; draw(); return; }   // dropped the cue; can re-place or aim — ball-in-hand stays until the shot
-  if(!aiming)return; aiming=false; const cb=cueBall(); if(!cb){draw();return;}
-  const dx=cb.x-ptr.x, dy=cb.y-ptr.y, dist=Math.hypot(dx,dy);
-  if(dist<14){ draw(); return; }
-  const dir={x:dx/dist,y:dy/dist}, power=Math.min(dist,MAXPULL)/MAXPULL; ballInHand=false;  // the shot consumes ball-in-hand
+function updateAim(){ const cb=cueBall(); if(!cb)return;
+  const vx=ptr.x-cb.x, vy=ptr.y-cb.y, d=Math.hypot(vx,vy);
+  if(!pressing){
+    if(d>6){ aimDir={x:vx/d,y:vy/d}; } aimPower=0; return;   // hover: aim follows the cursor
+  }
+  // pull = how far you've dragged AWAY from the shot direction since clicking (i.e. pulling the cue back)
+  const pull=(pullAnchor.x-ptr.x)*aimDir.x+(pullAnchor.y-ptr.y)*aimDir.y;
+  if(pull>0){
+    aimPower=Math.min(pull,MAXPULL)/MAXPULL;             // pulling back → charge, aim FROZEN
+  } else {
+    aimPower=0;                                          // dragged forward past the click → power off
+    const ahead=vx*aimDir.x+vy*aimDir.y;
+    if(ahead>0 && d>6){ aimDir={x:vx/d,y:vy/d}; }        // re-aim only when the cursor is in front of the ball
+    pullAnchor={x:ptr.x,y:ptr.y};                        // re-anchor so the next pull-back starts fresh
+  }
+}
+function down(e){ if(!canAim())return;
+  if(e.target&&e.target.closest&&e.target.closest('button,a,input,.overlay,.roomchip')) return;  // let real UI controls work
+  ptr=toLocal(e); const cb=cueBall(); if(!cb)return;
+  if(ballInHand && Math.hypot(ptr.x-cb.x,ptr.y-cb.y)<BR*3){ placing=true; moveCueTo(ptr); draw(); return; }
+  pressing=true; aimActive=true; pullAnchor={x:ptr.x,y:ptr.y};   // the shot starts wherever you click; aim is kept from your hover
+  updateAim();                                                   // establish power 0 / aim from the click position
+  try{cv.setPointerCapture(e.pointerId);}catch(_){} draw(); }
+function move(e){
+  if(placing){ ptr=toLocal(e); moveCueTo(ptr); draw(); return; }
+  if(!canAim()){ if(aimActive&&!pressing){ aimActive=false; draw(); } return; }
+  ptr=toLocal(e); aimActive=true; updateAim(); draw();
+}
+function up(e){
+  if(placing){ placing=false; draw(); return; }   // dropped the cue; ball-in-hand stays until the shot
+  if(!pressing)return; pressing=false; try{cv.releasePointerCapture(e&&e.pointerId);}catch(_){}
+  const cb=cueBall(); if(!cb){ aimPower=0; draw(); return; }
+  if(aimPower<MINPOW){ aimPower=0; draw(); return; }                  // too soft → keep aiming, don't fire
+  const dir={x:aimDir.x,y:aimDir.y}, power=aimPower; aimPower=0; aimActive=false; ballInHand=false;  // shot consumes ball-in-hand
   if(mode==='online') sendShot(dir,power); else shoot(dir,power); }
-cv.addEventListener('pointerdown',down);
+window.addEventListener('pointerdown',down);   // window-level so you can start a shot from anywhere on the page
 window.addEventListener('pointermove',move);   // window-level so off-table drag still works
 window.addEventListener('pointerup',up);
 
@@ -368,21 +434,31 @@ function draw(){
   if(ballInHand && phase==='aim' && (mode!=='online'||cur===myRole)){ const cb=cueBall(); if(cb){
     ctx.save(); ctx.setLineDash([5,5]); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.85)';
     ctx.beginPath(); ctx.arc(cb.x,cb.y,BR+6,0,7); ctx.stroke(); ctx.restore(); } }
-  // aiming: guide line + cue stick drawn back (further pull = more power)
-  if(aiming){ const cb=cueBall(); if(cb){ const dx=cb.x-ptr.x, dy=cb.y-ptr.y, dist=Math.hypot(dx,dy);
-    if(dist>14){ const dir={x:dx/dist,y:dy/dist}, gd=aimGuide(cb,dir), pull=Math.min(dist,MAXPULL)/MAXPULL;
-      ctx.save(); ctx.setLineDash([10,9]); ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.9)';
-      ctx.beginPath(); ctx.moveTo(cb.x,cb.y); ctx.lineTo(gd.end.x,gd.end.y); ctx.stroke(); ctx.setLineDash([]);
-      if(gd.hit==='ball'){ ctx.beginPath(); ctx.arc(gd.end.x,gd.end.y,BR,0,7); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(gd.end.x,gd.end.y); ctx.lineTo(gd.end.x+gd.objDir.x*70,gd.end.y+gd.objDir.y*70); ctx.strokeStyle='#2fe3c0'; ctx.lineWidth=3; ctx.stroke(); }
-      ctx.restore();
-      drawCue(cb, dir, BR+12+pull*78);
-    } } }
+  // aiming: guide line tracks the pointer; cue stick draws back with power.
+  // (When the coach is on it draws its own physics prediction, so skip this basic guide to avoid a doubled overlay.)
+  if(aimActive && phase==='aim'){ const cb=cueBall(); if(cb){ const dir=aimDir, pull=aimPower;
+      if(!coachActive()){ const gd=aimGuide(cb,dir);
+        ctx.save(); ctx.setLineDash([10,9]); ctx.lineWidth=3; ctx.strokeStyle='rgba(255,255,255,.9)';
+        ctx.beginPath(); ctx.moveTo(cb.x,cb.y); ctx.lineTo(gd.end.x,gd.end.y); ctx.stroke(); ctx.setLineDash([]);
+        if(gd.hit==='ball'){ ctx.beginPath(); ctx.arc(gd.end.x,gd.end.y,BR,0,7); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(gd.end.x,gd.end.y); ctx.lineTo(gd.end.x+gd.objDir.x*70,gd.end.y+gd.objDir.y*70); ctx.strokeStyle='#2fe3c0'; ctx.lineWidth=3; ctx.stroke(); }
+        ctx.restore();
+      }
+      drawCue(cb, dir, BR+12+pull*78);   // power is shown on the DOM meter (right side), not over the felt
+  } }
   // strike: stick accelerates forward into the ball, then the shot launches
   else if(phase==='strike' && strike){ const cb=cueBall(); if(cb){
     const t=Math.min(1,strike.t/STRIKE_MS), e=t*t, back=BR+12+strike.power*78;
     drawCue(cb, strike.dir, back+(BR-1-back)*e); } }
   drawCoach();
+  updatePowerMeter();
+}
+// vertical power meter on the right — shows while you're pulling a shot; fill uses transform:scaleY (GPU-cheap)
+function updatePowerMeter(){ const w=document.getElementById('powerwrap'); if(!w)return;
+  const live = aimActive && phase==='aim' && (pressing || aimPower>0.001);
+  w.classList.toggle('show', live);
+  if(live){ document.getElementById('powerfill').style.transform='scaleY('+aimPower.toFixed(3)+')';
+    document.getElementById('powerpct').textContent=Math.round(aimPower*100)+'%'; }
 }
 function drawCue(cb,dir,gap){
   const tx=cb.x-dir.x*gap, ty=cb.y-dir.y*gap, len=300;
@@ -471,8 +547,18 @@ function joinRoom(code){
     if(!r.p2) ref.child('p2').set({id:myId,name}).then(enterOnline);
     else toast('Game is full'); }).catch(e=>{ console.error(e); toast('Join failed'); });
 }
+const isTouch=matchMedia('(pointer:coarse)').matches;
+function goFullscreen(){ const el=document.documentElement;
+  const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+  if(fn){ try{ const p=fn.call(el); if(p&&p.catch) p.catch(()=>{}); }catch(_){} } }
+function exitFullscreen(){ const fn=document.exitFullscreen||document.webkitExitFullscreen;
+  if(fn){ try{ fn.call(document); }catch(_){} } }
+function isFs(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
+function toggleFullscreen(){ if(isFs()) exitFullscreen(); else goFullscreen(); }
 function startGameUI(){ document.body.classList.add('ingame');
-  try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} }
+  // mobile: go truly fullscreen (hide the browser chrome so the table fills the screen) + lock landscape
+  if(isTouch){ goFullscreen();
+    try{ if(screen.orientation&&screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{}); }catch(_){} } }
 function enterOnline(){
   mode='online'; $('lobby').classList.add('hidden'); $('tag').textContent='online 1v1'; startGameUI();
   roomRef=db.ref('pool/'+roomCode);
@@ -554,6 +640,7 @@ $('localBtn').onclick=()=>{ mode='local'; $('lobby').classList.add('hidden'); $(
 $('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ $('joinCode').value?joinRoom($('joinCode').value):createRoom(); }});
 $('joinCode').addEventListener('keydown',e=>{ if(e.key==='Enter') joinRoom($('joinCode').value); });
 $('rackBtn').onclick=()=>{ if(mode==='online') requestRematch(); else rack(); };
+$('fsBtn').onclick=toggleFullscreen;
 $('inviteBtn2').onclick=()=>{ if(!roomCode){ toast('Create or join a game first'); return; } const url=location.origin+location.pathname+'?room='+roomCode;
   navigator.clipboard.writeText(url).then(()=>toast('Link copied — send it to a friend!')).catch(()=>prompt('Copy this link',url)); };
 (function(){ const p=new URLSearchParams(location.search).get('room');
@@ -634,8 +721,8 @@ function coachSig_(){ return cur+'|'+liveObjects().map(b=>b.n+':'+Math.round(b.x
 function drawCoach(){
   if(!coachActive()){ return; }
   const sig=coachSig_(); if(sig!==coachSig){ coachSig=sig; coachBest=bestShot(); }
-  if(aiming){ const cb=cueBall(); if(cb){ const dx=cb.x-ptr.x,dy=cb.y-ptr.y,d=Math.hypot(dx,dy);
-    if(d>14){ drawPrediction({x:dx/d,y:dy/d}, Math.min(d,MAXPULL)/MAXPULL); } } }
+  // predict the player's current aim — while free-aiming (power 0) use a preview power so the path still follows the mouse
+  if(aimActive){ const cb=cueBall(); if(cb){ drawPrediction(aimDir, aimPower>0.02?aimPower:0.72); } }
   if(coachBest && !placing) drawRecommendation(coachBest);
 }
 function tracePath(p){ ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); for(let i=1;i<p.length;i++) ctx.lineTo(p[i][0],p[i][1]); ctx.stroke(); }
