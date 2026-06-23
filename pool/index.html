@@ -457,7 +457,9 @@ function draw(){
 function updatePowerMeter(){ const w=document.getElementById('powerwrap'); if(!w)return;
   const live = aimActive && phase==='aim' && (pressing || aimPower>0.001);
   w.classList.toggle('show', live);
-  if(live){ document.getElementById('powerfill').style.transform='scaleY('+aimPower.toFixed(3)+')';
+  if(live){ const r=cv.getBoundingClientRect();
+    w.style.top=(r.top+r.height/2)+'px';                 // line the meter up with the table's vertical centre
+    document.getElementById('powerfill').style.transform='scaleY('+aimPower.toFixed(3)+')';
     document.getElementById('powerpct').textContent=Math.round(aimPower*100)+'%'; }
 }
 function drawCue(cb,dir,gap){
